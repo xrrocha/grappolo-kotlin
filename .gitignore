@@ -1,0 +1,8 @@
+*.log
+*~
+.attic/
+.gradle/
+.idea/
+build/
+gradle/
+gradlew*
