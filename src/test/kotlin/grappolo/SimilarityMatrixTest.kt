@@ -5,6 +5,10 @@ import java.io.File
 
 class SimilarityMatrixTest {
 
+    companion object {
+        private val logger = getLogger(this)
+    }
+
     /*
         "alejandro", "alejandor", "alexandro",
         "marlene", "marleny", "malrene",
@@ -81,41 +85,5 @@ class SimilarityMatrixTest {
         assert(actualClusters == expectedNameClusters)
 
         assert(names.toSet() == actualClusters.flatten().toSet())
-    }
-
-
-    @Test
-    fun `Builds surnames clusters correctly`() {
-
-        val surnameDataDirectory = File(dataDirectory, "surnames")
-
-        val dataFile = File(surnameDataDirectory, "data.tsv")
-        require(dataFile.isFile) {
-            "Can't read data file: ${dataFile.absolutePath}"
-        }
-
-        val surnameCount = Int.MAX_VALUE
-        val lines = readLines(dataFile, linesToRead = surnameCount)
-        logger.debug("Loaded ${lines.size} lines from ${dataFile}")
-
-        val context = ClusteringContext(
-            elements = lines,
-            minSimilarity = 0.7,
-            similarityMetric = DamerauSimilarityMetric(lines),
-            pairGenerator = CartesianPairGenerator(lines.size),
-            clusterer = GrappoloClusterer,
-            clusterEvaluator = SimpleClusterEvaluator
-        )
-
-        val (evaluation, millis) = time { context.bestClustering }
-        logger.debug(
-            "${format(evaluation.clusters.size)} clusters found in ${format(lines.size)} elements. Elapsed time: ${format(millis)}"
-        )
-
-        context.dump(surnameDataDirectory)
-    }
-
-    companion object {
-        private val logger = getLogger(this)
     }
 }
