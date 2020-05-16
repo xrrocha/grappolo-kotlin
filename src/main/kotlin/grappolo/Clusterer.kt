@@ -80,26 +80,26 @@ object GrappoloClusterer : Clusterer {
 
                 val baseCluster = resultClusterStep.collectedPaths.flatten().toSet()
 
-                // Add centroid direct siblings
-                val elementWeights = baseCluster.map { i ->
-                    val weight =
-                        baseCluster
-                            .filter { j -> i != j }
-                            .map { j -> similarityMatrix[i][j] }
-                            .filterNot { similarity -> similarity == 0.0 }
-                            .sum()
-                    Pair(i, weight)
-                }
-                val maxWeight = elementWeights.map { it.second }.max() ?: 0.0
-                val centroids = elementWeights.filter { it.second == maxWeight }.map { it.first }
-
-                val cluster = baseCluster + centroids.flatMap { i ->
-                    similarityMatrix[i].scoresAbove(minSimilarity).keys
-                }
+                // // Add centroid direct siblings
+                // val intraSimilarities = baseCluster.map { i ->
+                //     val intraSimilarity =
+                //         baseCluster
+                //             .filter { j -> i != j }
+                //             .map { j -> similarityMatrix[i][j] }
+                //             .filterNot { similarity -> similarity == 0.0 } // TODO Lossy min similarity
+                //             .average()
+                //     Pair(i, intraSimilarity)
+                // }
+                // val maxIntraSimilarity = intraSimilarities.map { it.second }.max() ?: 0.0
+                // val centroids = intraSimilarities.filter { it.second == maxIntraSimilarity }.map { it.first }
+                //
+                // val cluster = baseCluster + centroids.flatMap { i ->
+                //     similarityMatrix[i].scoresAbove(minSimilarity).keys
+                // }
 
                 resultClusterStep.copy(
-                    collectedClusters = clusterStep.collectedClusters.plusElement(cluster),
-                    clusteredElements = clusterStep.clusteredElements + cluster
+                    collectedClusters = clusterStep.collectedClusters.plusElement(baseCluster),
+                    clusteredElements = clusterStep.clusteredElements + baseCluster
                 )
             }
         }
