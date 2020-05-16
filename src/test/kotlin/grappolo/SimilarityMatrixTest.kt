@@ -1,7 +1,6 @@
 package grappolo
 
 import org.junit.Test
-import java.io.File
 
 class SimilarityMatrixTest {
 
@@ -15,26 +14,13 @@ class SimilarityMatrixTest {
         "marta", "martha", "mrata",
         "jorge", "jorje",
         "ricardo"
-    */
-
-    private val dataDirectory = File("data").also {
-        require(it.isDirectory) { "Can't access data directory: ${it.absolutePath}" }
-    }
-
-    private val names = readLines(dataDirectory, "names/data.tsv")
-    val expectedNameClusters = setOf(
-        setOf("alejandro", "alejandor", "alexandro"),
-        setOf("marlene", "marleny", "malrene"),
-        setOf("marta", "martha", "mrata"),
-        setOf("jorge", "jorje"),
-        setOf("ricardo")
-    )
+     */
 
     private val context = ClusteringContext(
-        elements = names,
+        elements = NameFixture.elements,
         minSimilarity = 0.0,
-        similarityMetric = DamerauSimilarityMetric(names),
-        pairGenerator = CartesianPairGenerator(names.size),
+        similarityMetric = DamerauSimilarityMetric(NameFixture.elements),
+        pairGenerator = CartesianPairGenerator(NameFixture.elements.size),
         clusterer = GrappoloClusterer,
         clusterEvaluator = SimpleClusterEvaluator
     )
@@ -42,22 +28,14 @@ class SimilarityMatrixTest {
     @Test
     fun `Builds similarity matrix`() {
 
-        val nameDataDirectory = File(dataDirectory, "names")
-
         assert(context.similarityMatrix.size == context.size)
 
-        val expectedScores =
-            readLines(nameDataDirectory, "scores.tsv")
-                .map { it.split("\\t".toRegex()) }
-                .map { Triple(it[0].toInt(), it[1].toInt(), it[2].toDouble()) }
-        assert(expectedScores.all { (i, j, similarity) ->
+        assert(NameFixture.expectedScores.all { (i, j, similarity) ->
             context.similarityMatrix[i][j] == similarity
         })
-        assert(expectedScores.size == context.similarityMatrix.rows.map { it.scores.size }.sum())
+        assert(NameFixture.expectedScores.size == context.similarityMatrix.rows.map { it.scores.size }.sum())
 
-        val expectedSimilarities =
-            readLines(nameDataDirectory, "similarities.tsv").map { it.toDouble() }
-        assert(context.similarityMatrix.similarityValues == expectedSimilarities)
+        assert(context.similarityMatrix.similarityValues == NameFixture.expectedSimilarities)
     }
 
     @Test
@@ -66,12 +44,12 @@ class SimilarityMatrixTest {
         val minSimilarity = 0.6666666666666667
         val actualClusters = context.clusterer
             .cluster(context.similarityMatrix, minSimilarity)
-            .map { cluster -> cluster.map { names[it] }.toSet() }
+            .map { cluster -> cluster.map { NameFixture.elements[it] }.toSet() }
             .toSet()
 
-        assert(actualClusters == expectedNameClusters)
+        assert(actualClusters == NameFixture.expectedClusters)
 
-        assert(names.toSet() == actualClusters.flatten().toSet())
+        assert(NameFixture.elements.toSet() == actualClusters.flatten().toSet())
     }
 
     @Test
@@ -79,11 +57,11 @@ class SimilarityMatrixTest {
 
         val actualClusters =
             context.bestClustering.clusters
-                .map { cluster -> cluster.map { names[it] }.toSet() }
+                .map { cluster -> cluster.map { NameFixture.elements[it] }.toSet() }
                 .toSet()
 
-        assert(actualClusters == expectedNameClusters)
+        assert(actualClusters == NameFixture.expectedClusters)
 
-        assert(names.toSet() == actualClusters.flatten().toSet())
+        assert(NameFixture.elements.toSet() == actualClusters.flatten().toSet())
     }
 }

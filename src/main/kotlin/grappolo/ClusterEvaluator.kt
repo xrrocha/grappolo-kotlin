@@ -23,7 +23,7 @@ object SimpleClusterEvaluator : ClusterEvaluator {
                             .filterNot { it == 0.0 } // TODO Address lossy minSimilarity :-(
                     }
                 }
-                .min() ?: 0.0
+                .min() ?: 1.0
 
         fun clusterSimilarity(cluster1: Set<Index>, cluster2: Set<Index>): Similarity =
             cluster1
@@ -40,12 +40,14 @@ object SimpleClusterEvaluator : ClusterEvaluator {
                     clusterSimilarity(clusters[i], clusters[j])
                 }
             }
-                .max() ?: 1.0
+                .max() ?: 0.0
 
         val minValue = min(maxInterClusterSimilarity, minIntraClusterSimilarity)
         val maxValue = max(maxInterClusterSimilarity, minIntraClusterSimilarity)
         val evaluation = 1.0 - minValue / maxValue
-        // logger.debug("minInterClusterDistance: $minInterClusterDistance, maxIntraClusterDistance: $maxIntraClusterDistance, evaluation: $evaluation")
+        logger.debug("minIntraClusterSimilarity: $minIntraClusterSimilarity")
+        logger.debug("maxInterClusterSimilarity: $maxInterClusterSimilarity")
+        logger.debug("Evaluation: $evaluation")
 
         return evaluation
     }
