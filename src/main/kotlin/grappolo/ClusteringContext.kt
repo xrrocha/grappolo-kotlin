@@ -52,7 +52,7 @@ class ClusteringContext<T>(
                     val clusters = cluster(minSimilarity)
                     val clusterElements = clusters.flatten().map { index -> elements[index] }.toSet()
                     require(clusterElements == elementSet) {
-                        "Input element count (${clusterElements.size}) differs from clustering (${clusterElements.size})"
+                        "Input element count (${clusterElements.size}) differs from clustering (${elementSet.size})"
                     }
 
                     val evaluation = clusterEvaluator.evaluate(clusters, similarityMatrix)
