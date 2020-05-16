@@ -3,6 +3,7 @@ plugins {
     kotlin("jvm") version "1.3.72"
 }
 
+// TODO Fix Gradle 7 warnings
 application {
     mainClassName = "grappolo.GrappoloKt"
 }
