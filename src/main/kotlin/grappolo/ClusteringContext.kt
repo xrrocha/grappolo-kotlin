@@ -55,6 +55,7 @@ class ClusteringContext<T>(
                         "Input element count (${clusterElements.size}) differs from clustering (${elementSet.size})"
                     }
 
+                    logger.debug("Evaluating $minSimilarity")
                     val evaluation = clusterEvaluator.evaluate(clusters, similarityMatrix)
                     logger.debug("Evaluation for $minSimilarity: $evaluation")
 
