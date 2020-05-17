@@ -10,6 +10,14 @@ object NameFixture {
         "ricardo"
     )
 
+    val expectedClusterSet = setOf(
+        setOf(0, 1, 2),
+        setOf(3, 4, 5),
+        setOf(5, 7, 8),
+        setOf(9, 10),
+        setOf(11)
+    )
+
     val expectedClusters = setOf(
         setOf("alejandro", "alejandor", "alexandro"),
         setOf("marlene", "marleny", "malrene"),

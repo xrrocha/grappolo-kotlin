@@ -6,7 +6,7 @@ fun main() {
 
     val logger = getLogger("grappolo.Main")
 
-    val minSimilarity = 0.7
+    val minSimilarity = 0.0
 
     val linesToSkip = 0
     val linesToRead = Int.MAX_VALUE
@@ -16,9 +16,13 @@ fun main() {
     val similarityMetric: (List<String>) -> SimilarityMetric = { lines ->
         DamerauSimilarityMetric(lines)
     }
-    val pairGenerator: (List<String>, Int) -> PairGenerator = { lines, nGramLength ->
-        NGramPairGenerator(lines, nGramLength)
+
+    val pairGenerator: (Int) -> PairGenerator = { size ->
+        CartesianPairGenerator(size)
     }
+    //val pairGenerator: (List<String>, Int) -> PairGenerator = { lines, nGramLength ->
+    //    NGramPairGenerator(lines, nGramLength)
+    //}
     val clusterer = GrappoloClusterer
     val clusterEvaluator = SimpleClusterEvaluator
 
@@ -49,13 +53,17 @@ fun main() {
 
     val context = ClusteringContext(
         lines, minSimilarity,
-        similarityMetric(lines), pairGenerator(lines, ngramSize),
+        similarityMetric(lines), pairGenerator(lines.size),
         clusterer, clusterEvaluator
     )
 
     val (evaluation, millis) = time { context.bestClustering }
     logger.debug("${format(evaluation.clusters.size)} clusters found in ${format(lines.size)} elements.}")
     logger.debug("Elapsed time: ${format(millis)}")
+
+    require(evaluation.clusters.map{it.toList()}.flatten().map{lines[it]}.sorted() == lines.sorted()) {
+        "Input element and cluster result mismatch"
+    }
 
     context.dump(workDirectory)
 }

@@ -1,8 +1,5 @@
 package grappolo
 
-import kotlin.math.max
-import kotlin.math.min
-
 interface ClusterEvaluator {
     fun evaluate(clusters: List<Set<Index>>, similarityMatrix: SimilarityMatrix): Evaluation
 }
@@ -13,42 +10,41 @@ object SimpleClusterEvaluator : ClusterEvaluator {
 
     override fun evaluate(clusters: List<Set<Index>>, similarityMatrix: SimilarityMatrix): Evaluation {
 
-        val minIntraClusterSimilarity =
+        require(clusters.isNotEmpty() && clusters.all { it.isNotEmpty() }) {
+            "Invalid empty cluster(s)"
+        }
+
+        val elements = clusters.flatten()
+
+        val minSeparation =
             clusters
-                .flatMap { clusterSet ->
-                    val cluster = clusterSet.toList()
-                    cluster.indices.flatMap { i ->
-                        (i + 1 until cluster.size)
-                            .map { j -> similarityMatrix[cluster[i]][cluster[j]] }
-                            .filterNot { it == 0.0 } // TODO Address lossy minSimilarity :-(
-                    }
+                .filter { cluster -> cluster.size > 1 }
+                .flatMap { cluster ->
+                    elements
+                        .filterNot(cluster::contains)
+                        .flatMap { i -> cluster.map { j -> 1.0 - similarityMatrix[i][j] } }
                 }
-                .min() ?: 1.0
+                .min()!!
 
-        fun clusterSimilarity(cluster1: Set<Index>, cluster2: Set<Index>): Similarity =
-            cluster1
-                .flatMap { i ->
-                    cluster2.map { j ->
-                        similarityMatrix[i][j]
-                    }
+        val maxDiameter =
+            clusters
+                .filter { cluster -> cluster.size > 1 }
+                .flatMap { cluster ->
+                    val clusterElements = cluster.toList()
+                    cluster.indices
+                        .flatMap { i ->
+                            cluster.indices
+                                .filter { j -> i != j }
+                                .map { j -> similarityMatrix[clusterElements[i]][clusterElements[j]] }
+                                .filter { similarity -> similarity != 0.0 }
+                                .map { similarity -> 1.0 - similarity }
+                        }
                 }
-                .average()
+                .max()!!
 
-        val maxInterClusterSimilarity =
-            clusters.indices.flatMap { i ->
-                (i + 1 until clusters.size).map { j ->
-                    clusterSimilarity(clusters[i], clusters[j])
-                }
-            }
-                .max() ?: 0.0
-
-        val minValue = min(maxInterClusterSimilarity, minIntraClusterSimilarity)
-        val maxValue = max(maxInterClusterSimilarity, minIntraClusterSimilarity)
-        val evaluation = 1.0 - minValue / maxValue
-        logger.debug("minIntraClusterSimilarity: $minIntraClusterSimilarity")
-        logger.debug("maxInterClusterSimilarity: $maxInterClusterSimilarity")
-        logger.debug("Evaluation: $evaluation")
-
-        return evaluation
+        val dunnIndex = minSeparation / maxDiameter
+        logger.debug("Dunn index: $dunnIndex. Min separation $minSeparation. Max diameter: $maxDiameter")
+        return dunnIndex
     }
 }
+

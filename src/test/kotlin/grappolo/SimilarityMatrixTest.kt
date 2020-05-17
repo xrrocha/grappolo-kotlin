@@ -60,6 +60,7 @@ class SimilarityMatrixTest {
                 .map { cluster -> cluster.map { NameFixture.elements[it] }.toSet() }
                 .toSet()
 
+        println(actualClusters)
         assert(actualClusters == NameFixture.expectedClusters)
 
         assert(NameFixture.elements.toSet() == actualClusters.flatten().toSet())
