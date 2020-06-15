@@ -1,7 +1,8 @@
 package grappolo
 
+import info.debatty.java.stringsimilarity.Cosine
 import info.debatty.java.stringsimilarity.Damerau
-import info.debatty.java.stringsimilarity.interfaces.MetricStringDistance
+import info.debatty.java.stringsimilarity.interfaces.StringDistance
 import kotlin.math.max
 
 interface SimilarityMetric {
@@ -11,7 +12,7 @@ interface SimilarityMetric {
 // TODO Create separate module for string distance-based clustering
 open class StringDistanceSimilarityMetric(
     private val elements: List<String>,
-    private val stringDistance: MetricStringDistance
+    private val stringDistance: StringDistance
 ) : SimilarityMetric {
 
     override fun computeSimilarity(i: Index, j: Index): Similarity {
@@ -22,3 +23,4 @@ open class StringDistanceSimilarityMetric(
 }
 
 class DamerauSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Damerau())
+class CosineSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Cosine())
