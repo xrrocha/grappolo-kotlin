@@ -2,6 +2,7 @@ package grappolo
 
 import info.debatty.java.stringsimilarity.Cosine
 import info.debatty.java.stringsimilarity.Damerau
+import info.debatty.java.stringsimilarity.Jaccard
 import info.debatty.java.stringsimilarity.interfaces.StringDistance
 import kotlin.math.max
 
@@ -24,3 +25,4 @@ open class StringDistanceSimilarityMetric(
 
 class DamerauSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Damerau())
 class CosineSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Cosine())
+class JaccardSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Jaccard())
