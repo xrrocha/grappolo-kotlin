@@ -11,8 +11,6 @@ fun main() {
     val linesToSkip = 0
     val linesToRead = Int.MAX_VALUE
 
-    val ngramSize = 2
-
     val similarityMetric: (List<String>) -> SimilarityMetric = { lines ->
         DamerauSimilarityMetric(lines)
     }
@@ -20,6 +18,7 @@ fun main() {
     val pairGenerator: (Int) -> PairGenerator = { size ->
         CartesianPairGenerator(size)
     }
+    //val ngramSize = 2
     //val pairGenerator: (List<String>, Int) -> PairGenerator = { lines, nGramLength ->
     //    NGramPairGenerator(lines, nGramLength)
     //}
