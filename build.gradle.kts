@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("info.debatty:java-string-similarity:1.2.1")
+    implementation("info.debatty:java-string-similarity:2.0.0")
     implementation("org.apache.lucene:lucene-spellchecker:3.6.2")
 
     implementation("ch.qos.logback:logback-classic:1.2.3")
