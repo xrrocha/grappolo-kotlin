@@ -6,7 +6,7 @@ fun main() {
 
     val logger = getLogger("grappolo.Main")
 
-    val minSimilarity = 0.0
+    val minSimilarity = 0.5
 
     val linesToSkip = 0
     val linesToRead = Int.MAX_VALUE
