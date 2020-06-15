@@ -6,13 +6,13 @@ fun main() {
 
     val logger = getLogger("grappolo.Main")
 
-    val minSimilarity = 0.5
+    val minSimilarity = 0.0
 
     val linesToSkip = 0
     val linesToRead = Int.MAX_VALUE
 
     val similarityMetric: (List<String>) -> SimilarityMetric = { lines ->
-        DamerauSimilarityMetric(lines)
+        JaccardSimilarityMetric(lines)
     }
 
     val pairGenerator: (Int) -> PairGenerator = { size ->
