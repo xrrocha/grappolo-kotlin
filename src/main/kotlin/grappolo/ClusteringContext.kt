@@ -44,8 +44,8 @@ class ClusteringContext<T>(
         logger.debug("Finding best clustering")
 
         val (evaluation, clusters, similarity) =
-            similarityMatrix.similarityValues
-                .fold(Triple(-1.0, listOf<Set<Index>>(), -1.0)) { accumSoFar, minSimilarity ->
+            similarityMatrix.similarityValues.drop(1) // FIXME drop(0)
+                .fold(Triple(0.0, listOf<Set<Index>>(), 0.0)) { accumSoFar, minSimilarity ->
 
                     val (bestEvaluation, _, _) = accumSoFar
 
