@@ -1,7 +1,5 @@
 package grappolo
 
-import kotlin.streams.asStream
-
 data class Row(val scores: Map<Index, Similarity>) {
 
     operator fun get(index: Index): Similarity = scores[index] ?: 0.0
@@ -23,10 +21,10 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
         private val logger = getLogger(this)
 
         operator fun invoke(
-            size: Index,
-            minSimilarity: Similarity,
-            pairGenerator: PairGenerator,
-            similarityMetric: SimilarityMetric
+                size: Index,
+                minSimilarity: Similarity,
+                pairGenerator: PairGenerator,
+                similarityMetric: SimilarityMetric
         ): SimilarityMatrix {
 
             require(size > 0) { "Invalid similarity matrix size: $size" }
@@ -58,9 +56,27 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
             }
             logger.debug("Done populating similarity matrix")
 
-            val rowArray = rows.map { row -> Row(row) }.toTypedArray()
+            val minSimilarityValue = similarityValues.min() ?: 0.0
+            val maxSimilarityValue = similarityValues.max() ?: 0.0
+            val valueRatio = maxSimilarityValue - minSimilarityValue
 
-            return SimilarityMatrix(rowArray, similarityValues.sorted())
+            val normalizedSimilarityValues =
+                    similarityValues
+                            .map { similarityValue -> (similarityValue - minSimilarityValue) / valueRatio }
+                            .toList()
+                            .sorted()
+            logger.debug("Similarity values: $normalizedSimilarityValues")
+
+            val normalizedRows = rows.map { row ->
+                row
+                        .toList()
+                        .map { (index, similarity) -> index to (similarity - minSimilarityValue) / valueRatio }
+                        .toMap()
+            }
+
+            val rowArray = normalizedRows.map { row -> Row(row) }.toTypedArray()
+
+            return SimilarityMatrix(rowArray, normalizedSimilarityValues)
         }
     }
 }
