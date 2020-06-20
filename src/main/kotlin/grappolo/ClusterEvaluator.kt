@@ -7,24 +7,8 @@ interface ClusterEvaluator {
 
 object SimpleClusterEvaluator : ClusterEvaluator {
 
-    override fun evaluate(clusters: List<Set<Index>>, similarityMatrix: SimilarityMatrix): Evaluation {
-
-        val intraSimilarities = clusters.map { cluster ->
-
-            if (cluster.size == 1) {
-                0.0
-            } else {
-
-                val elements = cluster.toList()
-                elements.indices.flatMap { i ->
-                    (i + 1 until elements.size).map { j -> similarityMatrix[elements[i]][elements[j]] }
-                }
-                        .average()
-            }
-        }
-
-        return intraSimilarities.average()
-    }
+    override fun evaluate(clusters: List<Set<Index>>, similarityMatrix: SimilarityMatrix): Evaluation =
+            clusters.map(similarityMatrix::intraSimilarity).average()
 }
 
 object DunnIndexClusterEvaluator : ClusterEvaluator {

@@ -1,0 +1,11 @@
+#database:
+#  parameters:
+#    host: localhost
+#    port: 5432
+#    user: grappolo
+#    password: grappolo
+#    currentSchema: school_names
+#  jdbcTemplate: "jdbc:postgresql://$host:$port/$name?user=$user&password=$password&currentSchema=$currentSchema"
+minSimilarity: 0.0
+linesToSkip: 0
+linesToRead: 2147483647

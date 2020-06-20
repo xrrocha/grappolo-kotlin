@@ -16,6 +16,17 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
         return rows[index]
     }
 
+    fun intraSimilarity(cluster: Set<Index>): Similarity =
+            if (cluster.size < 2) {
+                0.0
+            } else {
+
+                val elements = cluster.toList()
+                elements.indices
+                        .flatMap { i -> (i + 1 until elements.size).map { j -> this[elements[i]][elements[j]] } }
+                        .average()
+            }
+
     companion object {
 
         private val logger = getLogger(this)
@@ -40,8 +51,8 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
             logger.debug("Populating similarity matrix")
             for ((i, j) in pairs) {
 
-                require(i in 0 until size) { "Invalid first index: $i" }
-                require(j in 0 until size) { "Invalid second index: $j" }
+                require(i in 0 until size) { "Invalid first index: $i ($size)" }
+                require(j in 0 until size) { "Invalid second index: $j ($size)" }
 
                 val similarity = similarityMetric.computeSimilarity(i, j)
                 require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
@@ -65,7 +76,6 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
                             .map { similarityValue -> (similarityValue - minSimilarityValue) / valueRatio }
                             .toList()
                             .sorted()
-            logger.debug("Similarity values: $normalizedSimilarityValues")
 
             val normalizedRows = rows.map { row ->
                 row
