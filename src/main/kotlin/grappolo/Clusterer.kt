@@ -78,49 +78,7 @@ object GrappoloClusterer : Clusterer {
                                 )
                         )
 
-//                val (_, clusters) =
-//                        resultClusterStep.collectedPaths
-//                                .map { cluster -> Pair(similarityMatrix.intraSimilarity(cluster), cluster) }
-//                                .fold(Pair(0.0, emptySet<Set<Index>>())) { accumPair, clusterPair ->
-//                                    val (bestIntraSimilarity, bestClusters) = accumPair
-//                                    val (clusterIntraSimilarity, cluster) = clusterPair
-//                                    when {
-//                                        clusterIntraSimilarity > bestIntraSimilarity -> Pair(clusterIntraSimilarity, setOf(cluster))
-//                                        clusterIntraSimilarity == bestIntraSimilarity -> Pair(bestIntraSimilarity, bestClusters.plusElement(cluster))
-//                                        else -> accumPair
-//                                    }
-//                                }
-//
-//                val baseCluster = clusters.flatten().toSet()
-
                 val baseCluster = resultClusterStep.collectedPaths.flatten().toSet()
-
-//                // Add centroid siblings
-//                val intraSimilarities = baseCluster.map { i ->
-//                    val intraSimilarity =
-//                            baseCluster
-//                                    .filter { j -> i != j }
-//                                    .map { j -> similarityMatrix[i][j] }
-//                                    .average()
-//                    Pair(i, intraSimilarity)
-//                }
-//
-//                val maxIntraSimilarity =
-//                        intraSimilarities
-//                                .map { it.second }
-//                                .max() ?: 0.0
-//                val centroids =
-//                        intraSimilarities
-//                                .filter { it.second == maxIntraSimilarity }
-//                                .map { it.first }
-//                val cluster = baseCluster + centroids.flatMap { i ->
-//                    similarityMatrix[i]
-//                            .scoresAbove(minSimilarity)
-//                            .keys
-//                            .filterNot(clusterStep.clusteredElements::contains)
-//                }
-//
-//                // TODO Compute & return new centroids
 
                 resultClusterStep.copy(
                         collectedClusters = clusterStep.collectedClusters.plusElement(baseCluster),
