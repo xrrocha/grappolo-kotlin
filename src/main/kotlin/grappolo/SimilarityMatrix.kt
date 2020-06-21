@@ -23,7 +23,10 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
 
                 val elements = cluster.toList()
                 elements.indices
-                        .flatMap { i -> (i + 1 until elements.size).map { j -> this[elements[i]][elements[j]] } }
+                        .flatMap { i ->
+                            (i + 1 until elements.size)
+                                    .map { j -> this[elements[i]][elements[j]] }
+                        }
                         .average()
             }
 
@@ -71,11 +74,13 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
             val maxSimilarityValue = similarityValues.max() ?: 0.0
             val valueRatio = maxSimilarityValue - minSimilarityValue
 
+            logger.debug("Similarity values: ${similarityValues.sorted()}")
             val normalizedSimilarityValues =
                     similarityValues
                             .map { similarityValue -> (similarityValue - minSimilarityValue) / valueRatio }
                             .toList()
                             .sorted()
+            logger.debug("Normalized similarity values: $normalizedSimilarityValues")
 
             val normalizedRows = rows.map { row ->
                 row
