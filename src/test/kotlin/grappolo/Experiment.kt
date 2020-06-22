@@ -40,20 +40,16 @@ fun main() {
     val pairGenerator: (Int) -> PairGenerator = {
         FilePairGenerator("${workDirectory.absolutePath}/word-pairs.tsv")
     }
-    // RRC
-//    val ngramSize = 2
-//    val pairGenerator: (List<String>, Int) -> PairGenerator = { lines, nGramLength ->
-//        NGramPairGenerator(lines, nGramLength)
-//    }
+
     val clusterer = GrappoloClusterer
     val clusterEvaluator = SimpleClusterEvaluator
 
-    val lines = readLines(dataFile, linesToRead, linesToSkip)// .filter { it.length >= ngramSize } // RRC
+    val lines = readLines(dataFile, linesToRead, linesToSkip)
     logger.debug("Loaded ${lines.size} lines from $dataFile")
 
     val context = ClusteringContext(
             lines, minSimilarity,
-            similarityMetric(lines), pairGenerator(lines.size), // (lines, ngramSize) // RRC
+            similarityMetric(lines), pairGenerator(lines.size),
             clusterer, clusterEvaluator
     )
 

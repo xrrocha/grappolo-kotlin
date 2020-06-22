@@ -1,6 +1,6 @@
 *.log
 *~
-.attic/
+.local/
 .gradle/
 .idea/
 build/

@@ -24,10 +24,12 @@ dependencies {
     val hsqldbVersion = "2.5.0"
     val jacksonVersion = "2.11.0"
     val junitVersion = "4.13"
+    val kotlinxVersion = "1.3.7"
     val logbackVersion = "1.2.3"
     val postgresVersion = "42.2.12"
 
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxVersion")
 
     implementation("info.debatty:java-string-similarity:2.0.0")
     implementation("org.apache.lucene:lucene-spellchecker:3.6.2")

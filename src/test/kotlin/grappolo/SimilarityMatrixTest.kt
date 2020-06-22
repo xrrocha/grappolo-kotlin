@@ -31,11 +31,11 @@ class SimilarityMatrixTest {
         assert(context.similarityMatrix.size == context.size)
 
         assert(NameFixture.expectedScores.all { (i, j, similarity) ->
-            context.similarityMatrix[i][j] == similarity
+            context.similarityMatrix.similarityMap[context.similarityMatrix[i][j]] == similarity
         })
         assert(NameFixture.expectedScores.size == context.similarityMatrix.rows.map { it.scores.size }.sum())
 
-        assert(context.similarityMatrix.similarityValues == NameFixture.expectedSimilarities)
+        assert(context.similarityMatrix.similarityMap.values.sorted() == NameFixture.expectedSimilarities)
     }
 
     @Test

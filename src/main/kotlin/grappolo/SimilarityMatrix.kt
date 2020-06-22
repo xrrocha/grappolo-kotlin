@@ -1,5 +1,12 @@
 package grappolo
 
+import arrow.fx.asCoroutineContext
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+
 data class Row(val scores: Map<Index, Similarity>) {
 
     operator fun get(index: Index): Similarity = scores[index] ?: 0.0
@@ -7,7 +14,7 @@ data class Row(val scores: Map<Index, Similarity>) {
     fun scoresAbove(minSimilarity: Similarity) = scores.filterValues { it >= minSimilarity }
 }
 
-class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similarity>) {
+class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, Similarity>) {
 
     val size: Index = rows.size
 
@@ -43,55 +50,84 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityValues: List<Similari
 
             require(size > 0) { "Invalid similarity matrix size: $size" }
 
-            val rows = Array<MutableMap<Index, Similarity>>(size) { mutableMapOf() }
+            val rows = Array<MutableMap<Index, Similarity>>(size) { ConcurrentHashMap() }
 
             logger.debug("Computing index pairs")
-            val similarityValues = mutableSetOf<Similarity>()
-            val (pairs, millis) = time { pairGenerator.pairs() }
-            logger.debug("Pair generation took ${format(millis)} milliseconds")
+            val similarityValues: MutableSet<Similarity> = ConcurrentHashMap.newKeySet()
+            val (pairs, pairGeneratorMillis) = time { pairGenerator.pairs() }
+            logger.debug("Pair generation took ${format(pairGeneratorMillis)} milliseconds")
 
-            // TODO Parallelize index pair consumption
             logger.debug("Populating similarity matrix")
-            for ((i, j) in pairs) {
+            fun consumePair(pair: Pair<Index, Index>) {
 
+                val (i, j) = pair
                 require(i in 0 until size) { "Invalid first index: $i ($size)" }
                 require(j in 0 until size) { "Invalid second index: $j ($size)" }
 
-                val similarity = similarityMetric.computeSimilarity(i, j)
+                val similarity = similarityMetric.computeSimilarity(pair.first, pair.second)
                 require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
 
                 if (similarity > 0.0 && similarity >= minSimilarity) {
 
+                    similarityValues += similarity
+
                     rows[i][j] = similarity
                     rows[j][i] = similarity
-
-                    similarityValues += similarity
                 }
             }
-            logger.debug("Done populating similarity matrix")
 
-            val minSimilarityValue = similarityValues.min() ?: 0.0
-            val maxSimilarityValue = similarityValues.max() ?: 0.0
-            val valueRatio = maxSimilarityValue - minSimilarityValue
+            val (_, matrixBuildTime) = time {
 
-            logger.debug("Similarity values: ${similarityValues.sorted()}")
-            val normalizedSimilarityValues =
-                    similarityValues
-                            .map { similarityValue -> (similarityValue - minSimilarityValue) / valueRatio }
-                            .toList()
-                            .sorted()
-            logger.debug("Normalized similarity values: $normalizedSimilarityValues")
+                val coroutineContext = Executors.newFixedThreadPool(16).asCoroutineContext()
 
-            val normalizedRows = rows.map { row ->
-                row
-                        .toList()
-                        .map { (index, similarity) -> index to (similarity - minSimilarityValue) / valueRatio }
-                        .toMap()
+                runBlocking(coroutineContext) {
+
+                    val channel = Channel<Pair<Index, Index>>()
+
+                    repeat(128) {
+                        launch {
+                            for (pair in channel) {
+                                consumePair(pair)
+                            }
+                        }
+                    }
+
+                    pairs.forEach { pair ->
+                        channel.send(pair)
+                    }
+
+                    channel.close()
+                }
             }
+            logger.debug("Populated similarity matrix in $matrixBuildTime milliseconds")
 
-            val rowArray = normalizedRows.map { row -> Row(row) }.toTypedArray()
+            val (similarityMatrix, normalizationTime) = time {
+                val minSimilarityValue = similarityValues.min() ?: 0.0
+                val maxSimilarityValue = similarityValues.max() ?: 0.0
+                val valueRatio = maxSimilarityValue - minSimilarityValue
 
-            return SimilarityMatrix(rowArray, normalizedSimilarityValues)
+                val normalizedSimilarityValues =
+                        similarityValues
+                                .map { similarityValue ->
+                                    similarityValue to (similarityValue - minSimilarityValue) / valueRatio
+                                }
+                                .toMap()
+
+                rows.forEach { row ->
+                    row.keys.forEach { index: Index ->
+                        row[index] = normalizedSimilarityValues[row[index]]!!
+                    }
+                }
+
+                val similarityMap = normalizedSimilarityValues.map { entry -> entry.value to entry.key }.toMap()
+
+                SimilarityMatrix(
+                        rows = rows.map { row -> Row(row) }.toTypedArray(),
+                        similarityMap = similarityMap)
+            }
+            logger.debug("Populated similarity values in $normalizationTime milliseconds")
+
+            return similarityMatrix
         }
     }
 }

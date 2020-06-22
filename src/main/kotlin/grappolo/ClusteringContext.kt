@@ -44,7 +44,7 @@ class ClusteringContext<T>(
         logger.debug("Finding best clustering")
 
         val (evaluation, clusters, similarity) =
-            similarityMatrix.similarityValues.drop(1) // FIXME drop(0)
+            similarityMatrix.similarityMap.keys // FIXME .drop(1)
                 .fold(Triple(0.0, listOf<Set<Index>>(), 0.0)) { accumSoFar, minSimilarity ->
 
                     val (bestEvaluation, _, _) = accumSoFar
@@ -70,6 +70,7 @@ class ClusteringContext<T>(
         ClusterEvaluation(clusters.sortedBy { -it.size }, similarity)
     }
 
+    // TODO Dump similarities (w/normalized)
     fun dump(directory: File) {
 
         fun withFile(baseName: String, action: (PrintWriter) -> Unit) {
@@ -85,7 +86,7 @@ class ClusteringContext<T>(
         directory.mkdirs()
 
         withFile("similarities") { out ->
-            for (similarityValue in similarityMatrix.similarityValues) {
+            for (similarityValue in similarityMatrix.similarityMap.keys) {
                 out.println(similarityValue)
             }
         }
