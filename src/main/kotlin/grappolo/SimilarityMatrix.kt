@@ -41,16 +41,16 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, 
 
         private val logger = getLogger(this)
 
-        operator fun invoke(
-                size: Index,
+        operator fun <T> invoke(
+                elements: List<T>,
                 minSimilarity: Similarity,
                 pairGenerator: PairGenerator,
-                similarityMetric: SimilarityMetric
+                similarityMetric: SimilarityMetric<T>
         ): SimilarityMatrix {
 
-            require(size > 0) { "Invalid similarity matrix size: $size" }
+            require(elements.isNotEmpty()) { "Invalid similarity matrix size: ${elements.size}" }
 
-            val rows = Array<MutableMap<Index, Similarity>>(size) { ConcurrentHashMap() }
+            val rows = Array<MutableMap<Index, Similarity>>(elements.size) { ConcurrentHashMap() }
 
             logger.debug("Computing index pairs")
             val similarityValues: MutableSet<Similarity> = ConcurrentHashMap.newKeySet()
@@ -61,10 +61,11 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, 
             fun consumePair(pair: Pair<Index, Index>) {
 
                 val (i, j) = pair
-                require(i in 0 until size) { "Invalid first index: $i ($size)" }
-                require(j in 0 until size) { "Invalid second index: $j ($size)" }
+                require(i in elements.indices) { "Invalid first index: $i (${elements.size})" }
+                require(j in elements.indices) { "Invalid second index: $j (${elements.size})" }
 
-                val similarity = similarityMetric.computeSimilarity(pair.first, pair.second)
+                val similarity =
+                        similarityMetric.computeSimilarity(elements[pair.first], elements[pair.second])
                 require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
 
                 if (similarity > 0.0 && similarity >= minSimilarity) {

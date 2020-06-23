@@ -6,23 +6,17 @@ import info.debatty.java.stringsimilarity.Jaccard
 import info.debatty.java.stringsimilarity.interfaces.StringDistance
 import kotlin.math.max
 
-interface SimilarityMetric {
-    fun computeSimilarity(i: Index, j: Index): Similarity
+interface SimilarityMetric<T> {
+    fun computeSimilarity(first: T, second: T): Similarity
 }
 
 // TODO Create separate module for string distance-based clustering
-open class StringDistanceSimilarityMetric(
-    private val elements: List<String>,
-    private val stringDistance: StringDistance
-) : SimilarityMetric {
+open class StringDistanceSimilarityMetric(private val stringDistance: StringDistance) : SimilarityMetric<String> {
 
-    override fun computeSimilarity(i: Index, j: Index): Similarity {
-        val s1 = elements[i]
-        val s2 = elements[j]
-        return 1.0 - (stringDistance.distance(s1, s2) / max(s1.length, s2.length))
-    }
+    override fun computeSimilarity(first: String, second: String): Similarity =
+            1.0 - (stringDistance.distance(first, second) / max(first.length, second.length))
 }
 
-class DamerauSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Damerau())
-class CosineSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Cosine())
-class JaccardSimilarityMetric(elements: List<String>) : StringDistanceSimilarityMetric(elements, Jaccard())
+class DamerauSimilarityMetric() : StringDistanceSimilarityMetric(Damerau())
+class CosineSimilarityMetric() : StringDistanceSimilarityMetric(Cosine())
+class JaccardSimilarityMetric() : StringDistanceSimilarityMetric(Jaccard())

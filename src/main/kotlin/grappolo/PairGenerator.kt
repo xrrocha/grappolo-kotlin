@@ -7,6 +7,7 @@ interface PairGenerator {
 }
 
 class CartesianPairGenerator(private val size: Index) : PairGenerator {
+
     override fun pairs(): Sequence<Pair<Index, Index>> = sequence {
         for (i in (0 until size))
             for (j in (i + 1 until size))

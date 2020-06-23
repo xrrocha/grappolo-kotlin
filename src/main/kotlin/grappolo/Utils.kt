@@ -22,15 +22,3 @@ fun getLogger(target: Any): Logger {
         else className
     return LoggerFactory.getLogger(loggerName)!!
 }
-
-fun readLines(directory: File, fileName: String, linesToRead: Int = Int.MAX_VALUE, linesToSkip: Int = 0): List<String> =
-    readLines(File(directory, fileName), linesToRead, linesToSkip)
-
-fun readLines(file: File, linesToRead: Int = Int.MAX_VALUE, linesToSkip: Int = 0): List<String> =
-    readLines(file.bufferedReader(), linesToRead, linesToSkip)
-
-fun readLines(reader: BufferedReader, linesToRead: Int = Int.MAX_VALUE, linesToSkip: Int = 0): List<String> =
-    reader
-        .readLines()
-        .drop(linesToSkip)
-        .take(linesToRead)

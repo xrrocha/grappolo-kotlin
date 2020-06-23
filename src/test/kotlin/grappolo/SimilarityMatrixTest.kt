@@ -16,19 +16,28 @@ class SimilarityMatrixTest {
         "ricardo"
      */
 
-    private val context = ClusteringContext(
-        elements = NameFixture.elements,
-        minSimilarity = 0.0,
-        similarityMetric = DamerauSimilarityMetric(NameFixture.elements),
-        pairGenerator = CartesianPairGenerator(NameFixture.elements.size),
-        clusterer = GrappoloClusterer,
-        clusterEvaluator = SimpleClusterEvaluator
+    private val source = ListSource(NameFixture.elements)
+    private val context = ClusteringConfiguration(
+            source = source,
+            minSimilarity = 0.0,
+            similarityMetric = DamerauSimilarityMetric(),
+            pairGenerator = CartesianPairGenerator(NameFixture.elements.size),
+            clusterer = GrappoloClusterer,
+            clusterEvaluator = SimpleClusterEvaluator
+//            mapOf(
+//                    "source" to source,
+//                    "minSimilarity" to 0.0,
+//                    "similarityMetric" to StringDistanceSimilarityMetric(source, Damerau()),
+//                    "pairGenerator" to CartesianPairGenerator(NameFixture.elements.size),
+//                    "clusterer" to GrappoloClusterer,
+//                    "clusterEvaluator" to SimpleClusterEvaluator
+//            )
     )
 
     @Test
     fun `Builds similarity matrix`() {
 
-        assert(context.similarityMatrix.size == context.size)
+        assert(context.similarityMatrix.size == context.elements.size)
 
         assert(NameFixture.expectedScores.all { (i, j, similarity) ->
             context.similarityMatrix.similarityMap[context.similarityMatrix[i][j]] == similarity
