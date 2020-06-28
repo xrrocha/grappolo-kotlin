@@ -58,46 +58,23 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, 
             logger.debug("Pair generation took ${format(pairGeneratorMillis)} milliseconds")
 
             logger.debug("Populating similarity matrix")
-            fun consumePair(pair: Pair<Index, Index>) {
-
-                val (i, j) = pair
-                require(i in elements.indices) { "Invalid first index: $i (${elements.size})" }
-                require(j in elements.indices) { "Invalid second index: $j (${elements.size})" }
-
-                val similarity =
-                        similarityMetric.computeSimilarity(elements[pair.first], elements[pair.second])
-                require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
-
-                if (similarity > 0.0 && similarity >= minSimilarity) {
-
-                    similarityValues += similarity
-
-                    rows[i][j] = similarity
-                    rows[j][i] = similarity
-                }
-            }
-
             val (_, matrixBuildTime) = time {
 
-                val coroutineContext = Executors.newFixedThreadPool(16).asCoroutineContext()
+                for ((i, j) in pairs) {
 
-                runBlocking(coroutineContext) {
+                    require(i in elements.indices) { "Invalid first index: $i (${elements.size})" }
+                    require(j in elements.indices) { "Invalid second index: $j (${elements.size})" }
 
-                    val channel = Channel<Pair<Index, Index>>()
+                    val similarity = similarityMetric.computeSimilarity(elements[i], elements[j])
+                    require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
 
-                    repeat(128) {
-                        launch {
-                            for (pair in channel) {
-                                consumePair(pair)
-                            }
-                        }
+                    if (similarity > 0.0 && similarity >= minSimilarity) {
+
+                        similarityValues += similarity
+
+                        rows[i][j] = similarity
+                        rows[j][i] = similarity
                     }
-
-                    pairs.forEach { pair ->
-                        channel.send(pair)
-                    }
-
-                    channel.close()
                 }
             }
             logger.debug("Populated similarity matrix in $matrixBuildTime milliseconds")
@@ -126,7 +103,7 @@ class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, 
                         rows = rows.map { row -> Row(row) }.toTypedArray(),
                         similarityMap = similarityMap)
             }
-            logger.debug("Populated similarity values in $normalizationTime milliseconds")
+            logger.debug("Normalized similarity values in $normalizationTime milliseconds")
 
             return similarityMatrix
         }

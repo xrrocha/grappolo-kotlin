@@ -37,6 +37,7 @@ dependencies {
 
     implementation("info.debatty:java-string-similarity:2.0.0")
     implementation("org.apache.lucene:lucene-spellchecker:3.6.2")
+    implementation("com.wcohen:com.wcohen.secondstring:0.1")
 
     implementation("io.arrow-kt:arrow-core:$arrowVersion")
     implementation("io.arrow-kt:arrow-fx:$arrowVersion")

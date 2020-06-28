@@ -2,6 +2,7 @@ package grappolo
 
 import java.io.File
 import java.io.PrintWriter
+import java.nio.charset.Charset
 import javax.script.ScriptEngineManager
 
 data class ClusterEvaluation(val clusters: List<Set<Int>>, val similarity: Similarity)
@@ -53,24 +54,26 @@ data class ClusteringConfiguration<T>(
 
         // TODO Parallelize cluster evaluation
         val (evaluation, clusters, similarity) =
-                similarityMatrix.similarityMap.keys
-                        .fold(Triple(0.0, listOf<Set<Index>>(), 0.0)) { accumSoFar, minSimilarity ->
+                // TODO Determine abnormally high first evaluation for cosine, jaccard
+                similarityMatrix.similarityMap.keys.sorted().drop(1)
+                        //.filter { it in 0.5..1.0 }
+                        .fold(Triple(0.0, listOf<Set<Index>>(), 0.0)) { accumSoFar, similarity ->
 
                             val (bestEvaluation, _, _) = accumSoFar
 
-                            val clusters = cluster(minSimilarity)
+                            val clusters = cluster(similarity)
                             val clusterElements = clusters.flatten().map { index -> elements[index] }.toSet()
                             require(clusterElements == elementSet) {
                                 "Input element count (${clusterElements.size}) differs from clustering (${elementSet.size})"
                             }
 
                             val evaluation = clusterEvaluator.evaluate(clusters, similarityMatrix)
-                            logger.debug("Evaluation for $minSimilarity: $evaluation")
+                            logger.debug("Evaluation for $similarity: $evaluation. Clusters: ${clusters.size}")
 
                             if (bestEvaluation > evaluation) {
                                 accumSoFar
                             } else {
-                                Triple(evaluation, clusters, minSimilarity)
+                                Triple(evaluation, clusters, similarity)
                             }
                         }
         logger.debug("Best evaluation: $evaluation. Similarity: $similarity, Cluster count: ${clusters.size}")
@@ -81,9 +84,11 @@ data class ClusteringConfiguration<T>(
     // TODO Dump similarities (w/normalized)
     fun dump(directory: File) {
 
+        val utf8 = Charset.forName("UTF-8")
+
         fun withFile(baseName: String, action: (PrintWriter) -> Unit) {
             val fileName = "$minSimilarity-$baseName.tsv"
-            File(directory, fileName).printWriter().use { out ->
+            File(directory, fileName).printWriter(utf8).use { out ->
                 action(out)
                 out.flush()
             }
@@ -94,8 +99,8 @@ data class ClusteringConfiguration<T>(
         directory.mkdirs()
 
         withFile("similarities") { out ->
-            for (similarityValue in similarityMatrix.similarityMap.keys) {
-                out.println(similarityValue)
+            for ((key, value) in similarityMatrix.similarityMap.toList().sortedBy { it.first }) {
+                out.println("$key\t$value")
             }
         }
 
@@ -118,6 +123,16 @@ data class ClusteringConfiguration<T>(
                 val cluster = bestClustering.clusters[index]
                 val clusterElements = cluster.joinToString(",") { neighborIndex -> show(neighborIndex) }
                 out.println("$index|${cluster.size};$clusterElements")
+            }
+        }
+
+        withFile("vectors") { out ->
+            for (i in similarityMatrix.rows.indices) {
+                val vector =
+                        (0 until similarityMatrix.size)
+                                .map { j -> similarityMatrix.rows[i].scores.getOrDefault(j, 0.0) }
+                                .joinToString(",")
+                out.println(vector)
             }
         }
     }
