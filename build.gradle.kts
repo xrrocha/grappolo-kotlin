@@ -15,6 +15,7 @@ group = "grappolo"
 version = "1.0-SNAPSHOT"
 
 repositories {
+    jcenter() // persistent collections
     mavenCentral()
 }
 
@@ -25,15 +26,16 @@ dependencies {
     val jacksonVersion = "2.11.0"
     val junitVersion = "4.13"
     val kotlinVersion = "1.3.72"
-    val kotlinxVersion = "1.3.7"
+    val coroutinesVersion = "1.3.7"
+    val immutableVersion = "0.3.2"
     val logbackVersion = "1.2.3"
     val postgresVersion = "42.2.12"
 
     implementation(kotlin("stdlib"))
 
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:$kotlinVersion")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:$immutableVersion")
 
     implementation("info.debatty:java-string-similarity:2.0.0")
     implementation("org.apache.lucene:lucene-spellchecker:3.6.2")
