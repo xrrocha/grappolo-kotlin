@@ -20,7 +20,7 @@ class SimilarityMatrixTest {
     private val context = ClusteringConfiguration(
             source = source,
             minSimilarity = 0.0,
-            similarityMetric = DamerauSimilarityMetric(),
+            similarityMetric = DamerauSimilarityMetric,
             pairGenerator = CartesianPairGenerator(NameFixture.elements.size),
             clusterer = GrappoloClusterer,
             clusterEvaluator = SimpleClusterEvaluator
