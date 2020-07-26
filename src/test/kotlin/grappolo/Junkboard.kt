@@ -20,7 +20,7 @@ fun main() {
 
     val baseDirectory = File("./build/results").also { it.mkdirs() }
 
-    val values = File("../data/surnames/data.tsv").readLines()
+    val values = File("./data/surnames/data.tsv").readLines()
 //    val separator = "\\s+".toRegex()
 //    val values = """
 //    alejandro alejandor alexandro
@@ -228,7 +228,7 @@ fun main() {
 
     File(baseDirectory, "clusters.tsv").printWriter().use { out ->
         bestResult.clusters.forEach { cluster ->
-            out.println("${cluster.size}\t${cluster.joinToString(",") { values[it] }}")
+            out.println("${cluster.size}\t${cluster.sortedBy { values[it] }.joinToString(",") { values[it] }}")
         }
     }
 
