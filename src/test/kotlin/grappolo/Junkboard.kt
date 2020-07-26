@@ -1,7 +1,5 @@
 package grappolo
 
-// DEPS info.debatty:java-string-similarity:2.0.0
-
 import info.debatty.java.stringsimilarity.Damerau
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -10,9 +8,67 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME
 import kotlin.math.max
 
-fun main() {
+//
+//data class Size(val value: Int) {
+//}
+//data class Index(val value: Int)
 
-    fun Double.fmt(digits: Int = 3) = "%.${digits}f".format(this)
+class Matrix(private val size: Int) {
+
+    private val similarities = mutableSetOf<Double>()
+
+    inner class Vector(private val parentIndex: Int) {
+
+        internal val elements = mutableMapOf(parentIndex to 1.0)
+
+        operator fun get(index: Int): Double {
+            validateIndex(index)
+            return elements.getOrDefault(index, 0.0)
+        }
+
+        operator fun set(index: Int, similarity: Double): Unit {
+            validateIndex(index)
+            require(!elements.containsKey((index))) { "Reassignment to similarity value with index $index" }
+            elements[index] = similarity
+        }
+
+        fun siblings(minSimilarity: Double): Set<Int> =
+                pullSiblings().filterValues { it >= minSimilarity }.keys
+
+        fun closestSiblings(minSimilarity: Double): Set<Int> {
+            val siblings = siblings(minSimilarity)
+            val maxSimilarity = siblings.map { this[it] }.max()
+            return if (maxSimilarity == null) emptySet() else siblings.filter { this[it] == maxSimilarity }.toSet()
+        }
+
+        private fun pullSiblings() = elements.filterKeys { it != parentIndex }
+    }
+
+    private val vectors = Array(size) { Vector(it) }
+
+    operator fun get(index: Int): Vector {
+        validateIndex(index)
+        return vectors[index]
+    }
+
+    fun addSimilarity(index1: Int, index2: Int, similarity: Double): Unit {
+        require(index1 != index2 || similarity == 1.0) { "Identity similarity must be 1.0, not $similarity" }
+        this[index1][index2] = similarity
+        this[index2][index1] = similarity
+        similarities += similarity
+    }
+
+    val allSimilarities: Set<Double> by lazy { similarities }
+    val elementCount: Int by lazy { vectors.map { it.elements.size }.sum() }
+
+    private fun validateIndex(index: Int) {
+        require(index in 0 until size) { "Index out of bounds: $index; should be between 0 and $size" }
+    }
+}
+
+fun Double.fmt(digits: Int = 2) = "%.${digits}f".format(this)
+
+fun main() {
 
     fun log(message: String) {
         println("${ISO_LOCAL_DATE_TIME.format(LocalDateTime.now())}: $message")
@@ -23,17 +79,17 @@ fun main() {
     val values = File("./data/surnames/data.tsv").readLines()
 //    val separator = "\\s+".toRegex()
 //    val values = """
-//    alejandro alejandor alexandro
-//    marlene marleny malrene
-//    marta martha mrata
-//    jorge jorje
-//    ricardo
-//"""
+//        alejandro alejandor alexandro
+//        marlene marleny malrene
+//        marta martha mrata
+//        jorge jorje
+//        ricardo
+//    """
 //            .split(separator)
 //            .filterNot(String::isEmpty)
 //            .sorted()
 
-    val similarityThreshold = 0.5
+    val similarityThreshold = 0.63
 
     val levenshteinDamerau = Damerau()
     fun measureSimilarity(first: String, second: String): Double =
@@ -41,33 +97,17 @@ fun main() {
 
     log("Starting clustering. Values: ${values.size}. Similarity threshold: $similarityThreshold")
 
-    val similarities = mutableSetOf<Double>()
-    val emptyMap = mutableMapOf<Int, Double>().withDefault { 0.0 }
-    val matrix = mutableMapOf<Int, MutableMap<Int, Double>>().withDefault { emptyMap }
-    values.indices.forEach { i -> matrix[i] = mutableMapOf(i to 1.0).withDefault { 0.0 } }
+    val matrix = Matrix(values.size)
     log("Creating similarity matrix")
     for (i in values.indices) {
         for (j in i + 1 until values.size) { // n*(n + 1) / 2
             val similarity = measureSimilarity(values[i], values[j])
             if (similarity >= similarityThreshold) {
-                matrix[i]!![j] = similarity
-                matrix[j]!![i] = similarity
-                similarities += similarity
+                matrix.addSimilarity(i, j, similarity)
             }
         }
     }
-    log("Created similarity matrix with ${matrix.values.map { it.size }.sum()} elements")
-
-    //File(baseDirectory, "matrix.tsv").printWriter().use { out ->
-    //    out.println("\t${values.joinToString("\t") { it }}")
-    //    values.indices.forEach { i ->
-    //        out.print(values[i])
-    //        values.indices.forEach { j ->
-    //            out.print("\t${matrix[i]!![j]?:0.0.fmt(4)}")
-    //        }
-    //        out.println()
-    //    }
-    //}
+    log("Created similarity matrix with ${matrix.elementCount} elements")
 
     fun intraSimilarity(cluster: List<Int>): Double =
             if (cluster.size == 1) {
@@ -75,90 +115,86 @@ fun main() {
             } else {
                 cluster.indices
                         .flatMap { i ->
-                            cluster.indices
-                                    .filter { j -> i != j }
-                                    .map { j -> matrix[cluster[i]]!![cluster[j]] ?: 0.0 }
+                            cluster.indices.map { j -> matrix[cluster[i]][cluster[j]] }
                         }
                         .average()
             }
 
-    fun Map<Int, Map<Int, Double>>.extractCluster(elementIndex: Int, minSimilarity: Double): Set<Int> {
+    fun Matrix.extractCluster(elementIndex: Int, minSimilarity: Double): Set<Int> {
 
-        fun Map<Int, Double>.siblingsAbove(minSimilarity: Double): Set<Int> =
-                this.filterValues { it >= minSimilarity }.keys
+        val initialCluster = this[elementIndex].siblings(minSimilarity)
 
-        val siblingsByElementIndex: Map<Int, Set<Int>> =
-                this[elementIndex]!!
-                        .siblingsAbove(minSimilarity)
-                        .flatMap { siblingIndex ->
-                            this[siblingIndex]!!
-                                    .siblingsAbove(minSimilarity)
-                                    .map { cousinIndex -> siblingIndex to cousinIndex }
+        val candidateCluster = initialCluster
+                .flatMap { index ->
+                    this[index].closestSiblings(minSimilarity).flatMap { siblingIndex ->
+                        this[siblingIndex].closestSiblings(minSimilarity).map { cousinIndex ->
+                            listOf(index, siblingIndex, cousinIndex)
                         }
-                        .groupBy { it.first }
-                        .mapValues { entry -> entry.value.map { it.second }.toSet() }
-                        .filter { entry -> entry.value.contains(elementIndex) }
+                    }
+                }
+                .filter { indices ->
+                    indices.all(initialCluster::contains)
+                }
+                .flatten()
+                .toSet()
 
-        if (siblingsByElementIndex.isEmpty()) {
+        if (candidateCluster.isEmpty()) {
             return setOf(elementIndex)
         }
 
-        val maxSiblingCount: Int = siblingsByElementIndex.values.map { it.size }.max()!!
+        val pairs =
+                candidateCluster.map { index ->
+                    index to candidateCluster
+                            .filter { siblingIndex -> this[index][siblingIndex] >= minSimilarity }
+                            .size
+                }
 
-        val maxIntraSimilarity =
-                siblingsByElementIndex
-                        .filter { entry -> entry.value.size == maxSiblingCount }
-                        .map { entry -> intraSimilarity(entry.value.toList()) }
-                        .max()!!
+        val maxSiblingCount = pairs.map { it.second }.max()!!
+        val cluster = pairs.filter { it.second == maxSiblingCount }.map { it.first }.toSet()
+        assert(cluster.size == maxSiblingCount)
+        { "Cluster count mismatch for ${values[elementIndex]}. Expected ${maxSiblingCount}, got ${cluster.size}" }
 
-        val bestIndex =
-                siblingsByElementIndex
-                        .toList()
-                        .find { (_, cluster) ->
-                            cluster.size == maxSiblingCount && intraSimilarity(cluster.toList()) == maxIntraSimilarity
-                        }
-                        ?.first
-                        ?: return setOf(elementIndex)
-
-        return siblingsByElementIndex[bestIndex]!!
+        return if (cluster.isEmpty()) setOf(elementIndex) else cluster
     }
 
     fun evaluateClustering(clusters: List<List<Int>>): Double = clusters.map(::intraSimilarity).average()
 
     data class Result(val minSimilarity: Double, val evaluation: Double, val clusters: List<List<Int>>)
 
-    log("Building clusters for ${similarities.size} similarities")
+    val clusterComparator = Comparator<List<Int>> { cluster1, cluster2 ->
+        if (cluster2.size != cluster1.size) {
+            cluster2.size - cluster1.size
+        } else {
+            fun weight(cluster: List<Int>): Double =
+                    cluster.indices.flatMap { i ->
+                        (i + 1 until cluster.size)
+                                .map { j ->
+                                    matrix[cluster[i]]!![cluster[j]] ?: 0.0
+                                }
+                    }
+                            .sum()
+
+            (weight(cluster2) - weight(cluster1)).toInt()
+        }
+    }
+
+    log("Building clusters for ${matrix.allSimilarities.size} similarities")
     val bestResult =
             File(baseDirectory, "results.tsv").printWriter(Charsets.UTF_8).use { out ->
 
-                similarities
+                matrix.allSimilarities
                         .sorted()
                         .fold(Result(0.0, 0.0, emptyList())) { bestResultSoFar, minSimilarity ->
 
                             log("Processing minimum similarity: $minSimilarity")
 
                             val (clusters, _) =
-                                    matrix.keys
+                                    values.indices
                                             .map { elementIndex ->
                                                 matrix.extractCluster(elementIndex, minSimilarity).sorted()
                                             }
                                             .distinct()
-                                            .sortedWith(Comparator { cluster1, cluster2 ->
-                                                if (cluster2.size != cluster1.size) {
-                                                    cluster2.size - cluster1.size
-                                                } else {
-                                                    fun weight(cluster: List<Int>): Double =
-                                                            cluster.indices.flatMap { i ->
-                                                                (i + 1 until cluster.size)
-                                                                        .map { j ->
-                                                                            matrix[cluster[i]]!![cluster[j]] ?: 0.0
-                                                                        }
-                                                            }
-                                                                    .sum()
-
-                                                    (weight(cluster2) - weight(cluster1)).toInt()
-                                                }
-                                            })
+                                            .sortedWith(clusterComparator)
                                             .fold(Pair(persistentListOf<List<Int>>(), persistentSetOf<Int>())) { accumSoFar, cluster ->
                                                 val (clustersSoFar, clusteredSoFar) = accumSoFar
                                                 if (cluster.none(clusteredSoFar::contains)) {
@@ -171,45 +207,6 @@ fun main() {
                             val evaluation = evaluateClustering(clusters)
 
                             out.println("${minSimilarity.fmt(4)}\t${evaluation.fmt(4)}\t${clusters.size}")
-
-                            //val clusterBasename = "clusters-${minSimilarity.fmt(2)}"
-                            //File(baseDirectory, "$clusterBasename.dot").printWriter(Charsets.UTF_8).use { dotOut ->
-                            //    dotOut.println("graph {")
-                            //    for (i in values.indices) {
-                            //        dotOut.println("  \"${values[i]}\";")
-                            //    }
-                            //    clusters.forEach { cluster ->
-                            //        for (i in cluster.indices) {
-                            //            for (j in i + 1 until cluster.size) {
-                            //                val leftIndex = cluster[i]
-                            //                val rightIndex = cluster[j]
-                            //                val similarity = (matrix[leftIndex]!![rightIndex]?:0.0).fmt(3)
-                            //                dotOut.println("  \"${values[leftIndex]}\" -- \"${values[rightIndex]}\" [label=\"$similarity\", weight = \"$similarity\"];")
-                            //            }
-                            //        }
-                            //    }
-                            //    dotOut.println("}")
-                            //    val errorFile = File(baseDirectory, "$clusterBasename.err")
-                            //    val exitCode =
-                            //            ProcessBuilder()
-                            //            .directory(baseDirectory)
-                            //            .command("dot", "-Tpng", "$clusterBasename.dot", "-o", "$clusterBasename.png")
-                            //            .redirectError(errorFile)
-                            //            .start()
-                            //            .waitFor()
-                            //    if (exitCode != 0) {
-                            //        log("Exit code: $exitCode")
-                            //    }
-                            //    if (exitCode != 0) {
-                            //        log("Exit code: $exitCode")
-                            //    }
-                            //    if (errorFile.length() > 0L) {
-                            //        log("Error generating cluster graph: ${errorFile.readText()}")
-                            //    } else {
-                            //        errorFile.delete()
-                            //        File(baseDirectory, "$clusterBasename.dot").delete()
-                            //    }
-                            //}
 
                             val currentResult = Result(minSimilarity, evaluation, clusters)
                             log("Results for similarity ${minSimilarity.fmt(2)}. Evaluation = ${evaluation.fmt(2)}. Clusters: ${clusters.size}")
