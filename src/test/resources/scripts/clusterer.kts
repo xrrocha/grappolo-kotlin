@@ -1,12 +1,12 @@
 // DEPS info.debatty:java-string-similarity:2.0.0
 
+import grappolo.ClusteringResult
 import info.debatty.java.stringsimilarity.Damerau
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatter.BASIC_ISO_DATE
 import kotlin.math.max
 
 fun Double.fmt(digits: Int = 3) = "%.${digits}f".format(this)
@@ -129,7 +129,7 @@ val bestResult =
 
             similarities
                     .sorted()
-                    .fold(Result(0.0, 0.0, emptyList())) { bestResultSoFar, minSimilarity ->
+                    .fold(ClusteringResult(0.0, 0.0, emptyList())) { bestResultSoFar, minSimilarity ->
 
                         log("Processing minimum similarity: $minSimilarity")
 
@@ -207,7 +207,7 @@ val bestResult =
                             }
                         }
 
-                        val currentResult = Result(minSimilarity, evaluation, clusters)
+                        val currentResult = ClusteringResult(minSimilarity, evaluation, clusters)
                         log("Results for similarity ${minSimilarity.fmt(2)}. Evaluation = ${evaluation.fmt(2)}. Clusters: ${clusters.size}")
 
                         if (evaluation > bestResultSoFar.evaluation) {

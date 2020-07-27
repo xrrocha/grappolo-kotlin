@@ -1,61 +1,19 @@
 package grappolo
 
-import com.wcohen.ss.*
-import com.wcohen.ss.api.StringWrapper
-import info.debatty.java.stringsimilarity.Cosine
-import info.debatty.java.stringsimilarity.Damerau
-import info.debatty.java.stringsimilarity.Jaccard
-import info.debatty.java.stringsimilarity.interfaces.StringDistance
+import info.debatty.java.stringsimilarity.interfaces.MetricStringDistance
 import kotlin.math.max
-import kotlin.math.min
-import com.wcohen.ss.api.StringDistance as SSStringDistance
 
-interface SimilarityMetric<T> {
-    fun computeSimilarity(first: T, second: T): Similarity
+interface SimilarityMetric {
+    fun measureSimilarity(index1: Int, index2: Int): Double
 }
 
-// TODO Create separate module for string distance-based clustering
-open class StringDistanceSimilarityMetric(private val stringDistance: StringDistance) : SimilarityMetric<String> {
-
-    override fun computeSimilarity(first: String, second: String): Similarity =
-            1.0 - (stringDistance.distance(first, second) / max(first.length, second.length))
-}
-
-object DamerauSimilarityMetric : StringDistanceSimilarityMetric(Damerau())
-object CosineSimilarityMetric : StringDistanceSimilarityMetric(Cosine())
-object JaccardSimilarityMetric : StringDistanceSimilarityMetric(Jaccard())
-
-open class SSSimilarityMetric(private val stringDistance: SSStringDistance, documents: Iterable<String>) : SimilarityMetric<String> {
-    override fun computeSimilarity(first: String, second: String): Similarity =
-            min(stringDistance.score(first, second), 1.0)
-
-    init {
-        if (stringDistance is AbstractStatisticalTokenDistance) {
-            for (document in documents) {
-                stringDistance.train(BasicStringWrapperIterator(documents.map(::BasicStringWrapper).iterator()))
-            }
-        }
+class DebattySimilarityMetric(private val stringDistance: MetricStringDistance,
+                              private val indexToString: (Int) -> String = Int::toString)
+    : SimilarityMetric {
+    override fun measureSimilarity(index1: Int, index2: Int): Double {
+        val string1 = indexToString(index1)
+        val string2 = indexToString(index2)
+        return 1.0 - (stringDistance.distance(string1, string2) / max(string1.length, string2.length))
     }
 }
 
-class SoftSSTFIDF(tokenDistance:SSStringDistance,
-                  tokenMatchThreshold: Double,
-                  documents: Iterable<String>) : SoftTFIDF(tokenDistance, tokenMatchThreshold), SimilarityMetric<String> {
-
-    init {
-        for (document in documents) {
-            train(BasicStringWrapperIterator(documents.map(::BasicStringWrapper).iterator()))
-        }
-    }
-
-    override fun computeSimilarity(first: String, second: String): grappolo.Similarity =
-            min(score(first, second), 1.0)
-}
-
-object DamerauSSStringDistance : AbstractStringDistance() {
-
-    override fun score(s: StringWrapper?, t: StringWrapper?): Double =
-            DamerauSimilarityMetric.computeSimilarity(s!!.unwrap()!!, t!!.unwrap()!!)
-
-    override fun explainScore(s: StringWrapper?, t: StringWrapper?): String? = null
-}

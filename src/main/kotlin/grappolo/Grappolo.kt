@@ -1,40 +1,140 @@
 package grappolo
 
-import java.io.File
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 
-fun main(args: Array<String>) {
+data class ClusteringResult(val minSimilarity: Double, val evaluation: Double, val clusters: List<Cluster>)
 
-    val logger = getLogger("grappolo.Main")
+interface ClusteringListener {
+    fun beforeMatrixCreation(elementCount: Int, similarityLowThreshold: Double) {}
+    fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {}
+    fun onSimilarity(minSimilarity: Double, index: Int) {}
+    fun onClusterCreated(cluster: Cluster) {}
+    fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {}
+    fun onBestClusteringResult(bestResult: ClusteringResult, clusteringTime: Long) {}
+}
 
-    val configFileName = if (args.isEmpty()) "grappolo.kts" else args[0]
-    val configFile = File(configFileName)
-    require(configFile.isFile && configFile.canRead()) {
-        "Can't access configuration script: ${configFile.absolutePath}"
+object Grappolo {
+
+    fun cluster(elementCount: Int,
+                similarityLowThreshold: Double,
+                indexPairGenerator: IndexPairGenerator,
+                similarityMetric: SimilarityMetric,
+                clusterExtractor: ClusterExtractor,
+                clusterComparator: ClusterComparator,
+                clusteringEvaluator: ClusteringEvaluator,
+                listener: ClusteringListener? = null)
+            : ClusteringResult {
+
+        val matrix = buildSimilarityMatrix(elementCount, similarityLowThreshold, indexPairGenerator, similarityMetric, listener)
+        return cluster(matrix, clusterExtractor, clusterComparator, clusteringEvaluator, listener)
     }
 
-    logger.debug("Running script: ${configFile.absolutePath}")
-    val context = ClusteringConfiguration.load<String>(configFile)
-    logger.debug("ClusterContext loaded from script")
+    fun cluster(matrix: SimilarityMatrix,
+                clusterExtractor: ClusterExtractor,
+                clusterComparator: ClusterComparator,
+                clusteringEvaluator: ClusteringEvaluator,
+                listener: ClusteringListener? = null): ClusteringResult {
 
-    val (evaluation, millis) = time { context.bestClustering }
-    logger.debug("${format(evaluation.clusters.size)} clusters found in ${format(context.elements.size)} elements.}")
-    logger.debug("Elapsed time: ${format(millis)}")
-
-    val workDirectory = configFile.parentFile
-    context.dump(workDirectory)
-
-    val expectedLines = context.elements.sorted()
-    val actualLines = evaluation.clusters.map { it.toList() }.flatten().map { context.elements[it] }.sorted()
-    if (actualLines != expectedLines) {
-
-        logger.error("Mismatch between expected (${expectedLines.size}) and cluster (${actualLines.size}) counts")
-
-        File(workDirectory, "actualElements.tsv").printWriter().use { out ->
-            expectedLines.forEach(out::println)
+        if (matrix.size == 1) {
+            return ClusteringResult(0.0, 0.0, listOf(Cluster(setOf(0), matrix)))
         }
 
-        File(workDirectory, "expectedElements.tsv").printWriter().use { out ->
-            actualLines.forEach(out::println)
+        val (bestResult, clusteringTime) = time {
+            matrix.distinctSimilarities().sorted().withIndex()
+                    .fold(ClusteringResult(0.0, 0.0, emptyList())) { bestResultSoFar, (index, minSimilarity) ->
+
+                        listener?.onSimilarity(minSimilarity, index)
+
+                        val (partialClusters, clusteredElements) =
+                                (0 until matrix.size)
+                                        .asSequence()
+                                        .map { elementIndex ->
+                                            clusterExtractor.extractCluster(elementIndex, minSimilarity, matrix)
+                                        }
+                                        .distinct()
+                                        .map { Cluster(it, matrix) }
+                                        .onEach { listener?.onClusterCreated(it) }
+                                        .sortedWith(clusterComparator)
+                                        .fold(Pair(persistentListOf<Cluster>(), persistentSetOf<Int>())) { accumSoFar, cluster ->
+                                            val (clustersSoFar, clusteredSoFar) = accumSoFar
+                                            if (cluster.elements.none(clusteredSoFar::contains)) {
+                                                Pair(clustersSoFar.add(cluster), clusteredSoFar.addAll(cluster.elements))
+                                            } else {
+                                                accumSoFar
+                                            }
+                                        }
+
+                        val clusters =
+                                partialClusters +
+                                        (0 until matrix.size)
+                                                .asSequence()
+                                                .filterNot(clusteredElements::contains)
+                                                .map { Cluster(setOf(it), matrix) }
+
+                        val clusteredCount = clusters.map { it.elements.size }.sum()
+                        require(clusteredCount == matrix.size) {
+                            "Cluster element count mismatch; expected ${matrix.size}, got $clusteredCount (from ${clusters.size})"
+                        }
+
+                        val (evaluation, evaluationTime)  = time {
+                            clusteringEvaluator.evaluateClustering(clusters, matrix)
+                        }
+                        val currentResult = ClusteringResult(minSimilarity, evaluation, clusters)
+                        listener?.onEachClusteringResult(currentResult, evaluationTime)
+
+                        if (evaluation > bestResultSoFar.evaluation) {
+                            currentResult
+                        } else {
+                            bestResultSoFar
+                        }
+                    }
         }
+
+        listener?.onBestClusteringResult(bestResult, clusteringTime)
+        return bestResult
+    }
+
+    fun buildSimilarityMatrix(elementCount: Int,
+                              similarityLowThreshold: Double,
+                              indexPairGenerator: IndexPairGenerator,
+                              similarityMetric: SimilarityMetric,
+                              listener: ClusteringListener? = null)
+            : SimilarityMatrix {
+
+        require(elementCount > 0) {
+            "Element count must be positive, not $elementCount"
+        }
+
+        require(similarityLowThreshold >= 0 && similarityLowThreshold < 1)
+        {
+            "Similarity low threshold must be between 0 (include) and 1 (exclusive; got $similarityLowThreshold"
+        }
+
+        listener?.beforeMatrixCreation(elementCount, similarityLowThreshold)
+
+        val (matrix, matrixCreationTime) = time {
+            SimilarityMatrix(elementCount).also { matrix ->
+                for ((i, j) in indexPairGenerator.pairs()) {
+
+                    require(i in 0 until elementCount) { "Invalid first index: $i" }
+                    require(j in 0 until elementCount) { "Invalid second index: $j" }
+
+                    val similarity = if (i == j) 1.0 else similarityMetric.measureSimilarity(i, j)
+                    require(similarity >= 0 && similarity < 1.0) {
+                        "Similarity must be between 0 (inclusive) and 1 (exclusive); got $similarity"
+                    }
+
+                    if (similarity >= similarityLowThreshold) {
+                        matrix.addSimilarity(i, j, similarity)
+                    }
+                }
+            }
+        }
+
+        listener?.onMatrixCreated(matrix, matrixCreationTime)
+        return matrix
     }
 }
+
+

@@ -1,4 +1,4 @@
-package grappolo
+package grappolo0
 
 interface Clusterer {
     fun cluster(similarityMatrix: SimilarityMatrix, minSimilarity: Similarity): List<Set<Index>>

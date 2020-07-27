@@ -1,24 +1,31 @@
 package grappolo
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import java.io.BufferedReader
 import java.io.File
-import java.text.DecimalFormat
+
+fun Double.fmt(digits: Int = 2) = "%.${digits}f".format(this)
 
 fun <T> time(action: () -> T): Pair<T, Long> {
     val start = System.currentTimeMillis()
     val result = action()
-    return Pair(result, System.currentTimeMillis() - start)
+    return result to (System.currentTimeMillis() - start)
 }
 
-private val NUMBER_FORMAT = DecimalFormat("###,###,###")
-fun format(value: Number) = NUMBER_FORMAT.format(value)!!
+fun File.printDelimited(separator: String, titles: List<String>, data: Sequence<List<Any?>>) {
 
-fun getLogger(target: Any): Logger {
-    val className = target::class.java.name
-    val loggerName =
-        if (className.endsWith("\$Companion")) className.substring(0, className.length - 10)
-        else className
-    return LoggerFactory.getLogger(loggerName)!!
+    this.printWriter().use { out ->
+
+        out.println(titles.joinToString(separator))
+
+        data.withIndex().forEach { (index, fields) ->
+
+            require(fields.size == titles.size) {
+                "Error in line ${index + 1}: expected ${titles.size} fields, got ${fields.size}"
+            }
+
+            val fieldValues = fields.map { it?.toString() ?: "" }
+            out.println(fieldValues.joinToString(separator))
+        }
+    }
 }
+
+

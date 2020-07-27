@@ -1,4 +1,4 @@
-package grappolo
+package grappolo0
 
 import org.junit.Test
 
@@ -28,7 +28,7 @@ class SimilarityMatrixTest {
 //                    "source" to source,
 //                    "minSimilarity" to 0.0,
 //                    "similarityMetric" to StringDistanceSimilarityMetric(source, Damerau()),
-//                    "pairGenerator" to CartesianPairGenerator(NameFixture.elements.size),
+//                    "pairGenerator" to grappolo.CartesianPairGenerator(NameFixture.elements.size),
 //                    "clusterer" to GrappoloClusterer,
 //                    "clusterEvaluator" to SimpleClusterEvaluator
 //            )

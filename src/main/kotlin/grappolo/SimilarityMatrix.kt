@@ -1,112 +1,61 @@
 package grappolo
 
-import arrow.fx.asCoroutineContext
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
+class SimilarityMatrix(val size: Int) {
 
-data class Row(val scores: Map<Index, Similarity>) {
+    private val similarities = mutableSetOf<Double>()
 
-    operator fun get(index: Index): Similarity = scores[index] ?: 0.0
+    inner class Vector(private val parentIndex: Int) {
 
-    fun scoresAbove(minSimilarity: Similarity) = scores.filterValues { it >= minSimilarity }
-}
+        private val elements = mutableMapOf(parentIndex to 1.0)
 
-class SimilarityMatrix(val rows: Array<Row>, val similarityMap: Map<Similarity, Similarity>) {
+        operator fun get(index: Int): Double {
+            validateIndex(index)
+            return elements.getOrDefault(index, 0.0)
+        }
 
-    val size: Index = rows.size
+        operator fun set(index: Int, similarity: Double) {
+            validateIndex(index)
+            require(!elements.containsKey((index))) { "Reassignment to similarity value with index $index" }
+            elements[index] = similarity
+        }
 
-    operator fun get(index: Index): Row {
-        require(index >= 0 && index < rows.size) { "Invalid index: $index" }
-        return rows[index]
+        fun elementsAbove(minSimilarity: Double): Set<Int> =
+                elements.filterValues { it >= minSimilarity }.keys
+
+        fun closestElements(minSimilarity: Double): Set<Int> {
+            val siblings = elementsAbove(minSimilarity) - parentIndex
+            val maxSimilarity = siblings.map { this[it] }.max()
+            val set =
+                    if (maxSimilarity == null) {
+                        emptySet()
+                    } else {
+                        siblings.filter { this[it] == maxSimilarity }.toSet()
+                    }
+            return set + parentIndex
+        }
     }
 
-    fun intraSimilarity(cluster: Set<Index>): Similarity =
-            if (cluster.size < 2) {
-                0.0
-            } else {
+    private val vectors = Array(size) { Vector(it) }
 
-                val elements = cluster.toList()
-                elements.indices
-                        .flatMap { i ->
-                            (i + 1 until elements.size)
-                                    .map { j -> this[elements[i]][elements[j]] }
-                        }
-                        .average()
-            }
+    operator fun get(index: Int): Vector {
+        validateIndex(index)
+        return vectors[index]
+    }
 
-    companion object {
+    fun addSimilarity(index1: Int, index2: Int, similarity: Double) {
+        require(index1 != index2 || similarity == 1.0) {
+            "Identity similarity must be 1.0, not $similarity"
+        }
+        this[index1][index2] = similarity
+        this[index2][index1] = similarity
+        similarities += similarity
+    }
 
-        private val logger = getLogger(this)
+    fun distinctSimilarities(): Set<Double> = similarities.toSet()
 
-        operator fun <T> invoke(
-                elements: List<T>,
-                minSimilarity: Similarity,
-                pairGenerator: PairGenerator,
-                similarityMetric: SimilarityMetric<T>
-        ): SimilarityMatrix {
-
-            require(elements.isNotEmpty()) { "Invalid similarity matrix size: ${elements.size}" }
-
-            val rows = Array<MutableMap<Index, Similarity>>(elements.size) { ConcurrentHashMap() }
-
-            logger.debug("Computing index pairs")
-            val similarityValues: MutableSet<Similarity> = ConcurrentHashMap.newKeySet()
-            val (pairs, pairGeneratorMillis) = time { pairGenerator.pairs() }
-            logger.debug("Pair generation took ${format(pairGeneratorMillis)} milliseconds")
-
-            logger.debug("Populating similarity matrix")
-            val (_, matrixBuildTime) = time {
-
-                for ((i, j) in pairs) {
-
-                    require(i in elements.indices) { "Invalid first index: $i (${elements.size})" }
-                    require(j in elements.indices) { "Invalid second index: $j (${elements.size})" }
-
-                    val similarity = similarityMetric.computeSimilarity(elements[i], elements[j])
-                    require(similarity in 0.0..1.0) { "Invalid similarity for ($i, $j): $similarity" }
-
-                    if (similarity > 0.0 && similarity >= minSimilarity) {
-
-                        similarityValues += similarity
-
-                        rows[i][j] = similarity
-                        rows[j][i] = similarity
-                    }
-                }
-            }
-            logger.debug("Populated similarity matrix in $matrixBuildTime milliseconds")
-
-            val (similarityMatrix, normalizationTime) = time {
-                val minSimilarityValue = similarityValues.min() ?: 0.0
-                val maxSimilarityValue = similarityValues.max() ?: 0.0
-                val valueRatio = maxSimilarityValue - minSimilarityValue
-
-                val normalizedSimilarityValues =
-                        similarityValues
-                                .map { similarityValue ->
-                                    similarityValue to (similarityValue - minSimilarityValue) / valueRatio
-                                }
-                                .toMap()
-
-                rows.forEach { row ->
-                    row.keys.forEach { index: Index ->
-                        row[index] = normalizedSimilarityValues[row[index]]!!
-                    }
-                }
-
-                val similarityMap = normalizedSimilarityValues.map { entry -> entry.value to entry.key }.toMap()
-
-                SimilarityMatrix(
-                        rows = rows.map { row -> Row(row) }.toTypedArray(),
-                        similarityMap = similarityMap)
-            }
-            logger.debug("Normalized similarity values in $normalizationTime milliseconds")
-
-            return similarityMatrix
+    private fun validateIndex(index: Int) {
+        require(index in 0 until size) {
+            "Index out of bounds: $index; should be between 0 and $size"
         }
     }
 }
-
