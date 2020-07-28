@@ -10,7 +10,7 @@ object SiblingClusterExtractor : ClusterExtractor {
 
         val initialElementSet = matrix[elementIndex].elementsAbove(minSimilarity)
 
-        val candidateElementSet = initialElementSet
+        return initialElementSet
                 .flatMap { index ->
                     matrix[index].closestElements(minSimilarity).flatMap { siblingIndex ->
                         matrix[siblingIndex].closestElements(minSimilarity).map { cousinIndex ->
@@ -23,11 +23,5 @@ object SiblingClusterExtractor : ClusterExtractor {
                 }
                 .flatten()
                 .toSet()
-
-        require(candidateElementSet.contains(elementIndex)) {
-            "Cluster does not contain element ($elementIndex): $candidateElementSet"
-        }
-
-        return candidateElementSet // clusterElements
     }
 }
