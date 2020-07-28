@@ -18,46 +18,15 @@ fun main() {
 
     val values = inputFile.readLines().map(String::trim).distinct().sorted()
 
-    val listener = object : ClusteringListener {
-
-        val logger = LoggerFactory.getLogger(this::class.java)!!
-
-        init {
-            logger.info("Clustering lines in file ${inputFile.absolutePath}")
-        }
-
-        override fun beforeMatrixCreation(elementCount: Int, similarityLowThreshold: Double) {
-            logger.info("About to cluster $elementCount elements with low similarity threshold of $similarityLowThreshold")
-        }
-
-        override fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {
-            logger.info("Matrix created in $matrixCreationTime milliseconds. ${matrix.distinctSimilarities().size} similarities found")
-        }
-
-        override fun onSimilarity(minSimilarity: Double, index: Int) {
-            logger.info("Processing similarity #${index + 1}: ${minSimilarity.fmt(4)}")
-        }
-
-        override fun onClusterCreated(cluster: Cluster) {}
-
-        override fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {
-            logger.info("${result.clusters.size} clusters found in $evaluationTime milliseconds")
-        }
-
-        override fun onBestClusteringResult(bestResult: ClusteringResult, clusteringTime: Long) {
-            logger.info("${bestResult.clusters.size} clusters found in $clusteringTime milliseconds")
-        }
-    }
-
     val clusteringResult = Grappolo.cluster(
             elementCount = values.size,
             similarityLowThreshold = 0.5,
             indexPairGenerator = CartesianPairGenerator(values.size),
             similarityMetric = DebattySimilarityMetric(Damerau()) { values[it] },
-            clusterExtractor = SiblingClusterExtractor,
+            clusterExtractor = ClosestSiblingClusterExtractor,
             clusterComparator = GreedyClusterComparator,
             clusteringEvaluator = IntraSimilarityClusteringEvaluator,
-            listener = listener)
+            listener = SimpleListener) // See below
 
     val resultDirectoryName = "./build/results"
     val resultDirectory = File(resultDirectoryName).apply { mkdirs() }
@@ -74,4 +43,31 @@ fun main() {
                 )
             }
     )
+}
+
+object SimpleListener: ClusteringListener {
+
+    private val logger = LoggerFactory.getLogger(this::class.java)!!
+
+    override fun beforeMatrixCreation(elementCount: Int, similarityLowThreshold: Double) {
+        logger.info("About to cluster $elementCount elements with low similarity threshold of $similarityLowThreshold")
+    }
+
+    override fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {
+        logger.info("Matrix created in $matrixCreationTime milliseconds. ${matrix.distinctSimilarities().size} similarities found")
+    }
+
+    override fun onSimilarity(minSimilarity: Double, index: Int) {
+        logger.info("Processing similarity #${index + 1}: ${minSimilarity.fmt(4)}")
+    }
+
+    override fun onClusterCreated(cluster: Cluster) {}
+
+    override fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {
+        logger.info("${result.clusters.size} clusters found in $evaluationTime milliseconds")
+    }
+
+    override fun onBestClusteringResult(bestResult: ClusteringResult, clusteringTime: Long) {
+        logger.info("${bestResult.clusters.size} clusters found in $clusteringTime milliseconds")
+    }
 }

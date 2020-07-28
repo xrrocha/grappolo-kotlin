@@ -4,7 +4,7 @@ interface ClusterExtractor {
     fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix): Set<Int>
 }
 
-object SiblingClusterExtractor : ClusterExtractor {
+object ClosestSiblingClusterExtractor : ClusterExtractor {
 
     override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix): Set<Int> {
 
