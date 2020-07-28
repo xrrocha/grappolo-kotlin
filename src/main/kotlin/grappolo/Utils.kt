@@ -1,8 +1,12 @@
 package grappolo
 
 import java.io.File
+import java.text.DecimalFormat
 
 fun Double.fmt(digits: Int = 2) = "%.${digits}f".format(this)
+
+private val NUMBER_FORMAT = DecimalFormat("###,###,###")
+fun format(value: Number) = NUMBER_FORMAT.format(value)!!
 
 fun <T> time(action: () -> T): Pair<T, Long> {
     val start = System.currentTimeMillis()
