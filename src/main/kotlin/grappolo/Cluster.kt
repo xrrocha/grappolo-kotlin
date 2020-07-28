@@ -38,4 +38,8 @@ class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
             other != null && other is Cluster && this.elements.size == other.elements.size && this.elements == other
 
     override fun hashCode(): Int = elements.hashCode()
+
+    override fun toString(): String {
+        return "Cluster(size=${elements.size},elements=$elements, centroids=$centroids, centroidWeight=$centroidWeight, intraSimilarity=$intraSimilarity)"
+    }
 }

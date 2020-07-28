@@ -26,7 +26,12 @@ object Grappolo {
                 listener: ClusteringListener? = null)
             : ClusteringResult {
 
-        val matrix = buildSimilarityMatrix(elementCount, similarityLowThreshold, indexPairGenerator, similarityMetric, listener)
+        val matrix = buildSimilarityMatrix(
+                elementCount, similarityLowThreshold,
+                indexPairGenerator, similarityMetric,
+                listener
+        )
+
         return cluster(matrix, clusterExtractor, clusterComparator, clusteringEvaluator, listener)
     }
 
@@ -34,10 +39,13 @@ object Grappolo {
                 clusterExtractor: ClusterExtractor,
                 clusterComparator: ClusterComparator,
                 clusteringEvaluator: ClusteringEvaluator,
-                listener: ClusteringListener? = null): ClusteringResult {
+                listener: ClusteringListener? = null)
+            : ClusteringResult {
 
         if (matrix.size == 1) {
-            return ClusteringResult(0.0, 0.0, listOf(Cluster(setOf(0), matrix)))
+            val singletonResult = ClusteringResult(0.0, 0.0, listOf(Cluster(setOf(0), matrix)))
+            listener?.onBestClusteringResult(singletonResult, 0L)
+            return singletonResult
         }
 
         val (bestResult, clusteringTime) = time {
@@ -77,7 +85,7 @@ object Grappolo {
                             "Cluster element count mismatch; expected ${matrix.size}, got $clusteredCount (from ${clusters.size})"
                         }
 
-                        val (evaluation, evaluationTime)  = time {
+                        val (evaluation, evaluationTime) = time {
                             clusteringEvaluator.evaluateClustering(clusters, matrix)
                         }
                         val currentResult = ClusteringResult(minSimilarity, evaluation, clusters)

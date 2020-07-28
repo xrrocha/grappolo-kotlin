@@ -6,7 +6,7 @@ import java.io.File
 
 fun main() {
 
-    val inputDirectoryName = "names"
+    val inputDirectoryName = "surnames"
     val dataDirectory = File("data/$inputDirectoryName")
     require(dataDirectory.exists() && dataDirectory.canRead()) {
         "Inaccessible data directory ${dataDirectory.absolutePath}"
@@ -45,7 +45,7 @@ fun main() {
         }
 
         override fun onBestClusteringResult(bestResult: ClusteringResult, clusteringTime: Long) {
-            logger.info("${bestResult.clusters.size} found in $clusteringTime milliseconds")
+            logger.info("${bestResult.clusters.size} clusters found in $clusteringTime milliseconds")
         }
     }
 
@@ -63,9 +63,10 @@ fun main() {
     val resultDirectory = File(resultDirectoryName).apply { mkdirs() }
     File(resultDirectory, "clusters.tsv").printDelimited(
             separator = "\t",
-            titles = listOf("elements", "centroids", "centroidWeight", "intraSimilarity"),
+            titles = listOf("size", "elements", "centroids", "centroidWeight", "intraSimilarity"),
             data = clusteringResult.clusters.asSequence().map { cluster ->
                 listOf(
+                        cluster.elements.size,
                         cluster.elements.joinToString(",") { values[it] },
                         cluster.centroids.joinToString(",") { values[it] },
                         cluster.centroidWeight.fmt(4),

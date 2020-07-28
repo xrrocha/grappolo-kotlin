@@ -7,19 +7,19 @@ object GreedyClusterComparator : ClusterComparator {
     override fun compare(cluster1: Cluster, cluster2: Cluster): Int {
 
         if (cluster2.elements.size != cluster1.elements.size) {
-            return cluster2.elements.size - cluster1.elements.size
+            return cluster2.elements.size - cluster1.elements.size // DESC
         }
 
         if (cluster2.intraSimilarity != cluster1.intraSimilarity) {
-            return (cluster2.intraSimilarity - cluster1.intraSimilarity).toInt()
+            return (10_000 * (cluster2.intraSimilarity - cluster1.intraSimilarity)).toInt() // DESC
         }
 
         if (cluster2.centroids.size != cluster1.centroids.size) {
-            return cluster2.centroids.size - cluster1.centroids.size
+            return cluster1.centroids.size - cluster2.centroids.size // ASC
         }
 
         if (cluster2.centroidWeight != cluster1.centroidWeight) {
-            return (cluster2.centroidWeight - cluster1.centroidWeight).toInt()
+            return(cluster2.centroidWeight - cluster1.centroidWeight).toInt() // DESC
         }
 
         val different =

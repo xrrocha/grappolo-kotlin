@@ -28,19 +28,6 @@ object SiblingClusterExtractor : ClusterExtractor {
             "Cluster does not contain element ($elementIndex): $candidateElementSet"
         }
 
-        val elementCounts =
-                candidateElementSet.map { index ->
-                    index to candidateElementSet
-                            .filter { siblingIndex -> matrix[index][siblingIndex] >= minSimilarity }
-                            .size
-                }
-
-        val maxElementCount = elementCounts.map { it.second }.max()!!
-        val clusterElements = elementCounts.filter { it.second == maxElementCount }.map { it.first }.toSet()
-        assert(clusterElements.contains(elementIndex) && clusterElements.size == maxElementCount) {
-            "Cluster count mismatch: expected ${maxElementCount}, got ${clusterElements.size}"
-        }
-
-        return clusterElements
+        return candidateElementSet // clusterElements
     }
 }
