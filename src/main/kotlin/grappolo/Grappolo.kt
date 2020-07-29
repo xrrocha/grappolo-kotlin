@@ -1,50 +1,36 @@
 package grappolo
 
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toPersistentSet
+
+class ClusteringConfiguration(val elementCount: Int,
+                              val similarityLowThreshold: Double,
+                              val indexPairGenerator: IndexPairGenerator,
+                              val similarityMetric: SimilarityMetric,
+                              val clusterExtractor: ClusterExtractor,
+                              val clusterComparator: ClusterComparator,
+                              val clusteringEvaluator: ClusteringEvaluator)
 
 data class ClusteringResult(val minSimilarity: Double, val evaluation: Double, val clusters: List<Cluster>)
 
 interface ClusteringListener {
-    fun beforeMatrixCreation(elementCount: Int, similarityLowThreshold: Double) {}
+    fun beforeClustering(configuration: ClusteringConfiguration) {}
     fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {}
-    fun onSimilarity(minSimilarity: Double, index: Int) {}
-    fun onClusterCreated(cluster: Cluster) {}
+    fun onEachSimilarity(minSimilarity: Double, index: Int) {}
+    fun onEachClusterCreated(cluster: Cluster) {}
     fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {}
-    fun onBestClusteringResult(bestResult: ClusteringResult, clusteringTime: Long) {}
+    fun afterClustering(result: ClusteringResult, clusteringTime: Long) {}
 }
 
 object Grappolo {
 
-    fun cluster(elementCount: Int,
-                similarityLowThreshold: Double,
-                indexPairGenerator: IndexPairGenerator,
-                similarityMetric: SimilarityMetric,
-                clusterExtractor: ClusterExtractor,
-                clusterComparator: ClusterComparator,
-                clusteringEvaluator: ClusteringEvaluator,
-                listener: ClusteringListener? = null)
-            : ClusteringResult {
+    fun cluster(configuration: ClusteringConfiguration, listener: ClusteringListener? = null): ClusteringResult {
 
-        val matrix = buildSimilarityMatrix(
-                elementCount, similarityLowThreshold,
-                indexPairGenerator, similarityMetric,
-                listener
-        )
-
-        return cluster(matrix, clusterExtractor, clusterComparator, clusteringEvaluator, listener)
-    }
-
-    fun cluster(matrix: SimilarityMatrix,
-                clusterExtractor: ClusterExtractor,
-                clusterComparator: ClusterComparator,
-                clusteringEvaluator: ClusteringEvaluator,
-                listener: ClusteringListener? = null)
-            : ClusteringResult {
+        val matrix = buildSimilarityMatrix(configuration, listener)
 
         if (matrix.size == 1) {
             val singletonResult = ClusteringResult(0.0, 0.0, listOf(Cluster(setOf(0), matrix)))
-            listener?.onBestClusteringResult(singletonResult, 0L)
+            listener?.afterClustering(singletonResult, 0L)
             return singletonResult
         }
 
@@ -52,33 +38,33 @@ object Grappolo {
             matrix.distinctSimilarities().sorted().withIndex()
                     .fold(ClusteringResult(0.0, 0.0, emptyList())) { bestResultSoFar, (index, minSimilarity) ->
 
-                        listener?.onSimilarity(minSimilarity, index)
+                        listener?.onEachSimilarity(minSimilarity, index)
 
-                        val (partialClusters, clusteredElements) =
-                                (0 until matrix.size)
-                                        .asSequence()
-                                        .map { elementIndex ->
-                                            clusterExtractor.extractCluster(elementIndex, minSimilarity, matrix)
-                                        }
-                                        .distinct()
-                                        .map { Cluster(it, matrix) }
-                                        .onEach { listener?.onClusterCreated(it) }
-                                        .sortedWith(clusterComparator)
-                                        .fold(Pair(persistentListOf<Cluster>(), persistentSetOf<Int>())) { accumSoFar, cluster ->
-                                            val (clustersSoFar, clusteredSoFar) = accumSoFar
-                                            if (cluster.elements.none(clusteredSoFar::contains)) {
-                                                Pair(clustersSoFar.add(cluster), clusteredSoFar.addAll(cluster.elements))
-                                            } else {
-                                                accumSoFar
+                        val (clusters, _) =
+                                generateSequence(Pair(persistentListOf<Cluster>(), (0 until matrix.size).toPersistentSet())) { accum ->
+
+                                    val (_, unclustered) = accum
+
+                                    unclustered
+                                            .asSequence()
+                                            .map { elementIndex ->
+                                                configuration.clusterExtractor.extractCluster(elementIndex, minSimilarity, matrix, unclustered)
                                             }
-                                        }
-
-                        val clusters =
-                                partialClusters +
-                                        (0 until matrix.size)
-                                                .asSequence()
-                                                .filterNot(clusteredElements::contains)
-                                                .map { Cluster(setOf(it), matrix) }
+                                            .distinct()
+                                            .map { Cluster(it, matrix) }
+                                            .sortedWith(configuration.clusterComparator)
+                                            .onEach { listener?.onEachClusterCreated(it) }
+                                            .fold(accum) { accumSoFar, cluster ->
+                                                val (clustersSoFar, unclusteredSoFar) = accumSoFar
+                                                if (cluster.elements.all(unclusteredSoFar::contains)) {
+                                                    Pair(clustersSoFar.add(cluster), unclusteredSoFar.removeAll(cluster.elements))
+                                                } else {
+                                                    accumSoFar
+                                                }
+                                            }
+                                }
+                                        .dropWhile { (_, unclustered) -> unclustered.isNotEmpty() }
+                                        .first()
 
                         val clusteredCount = clusters.map { it.elements.size }.sum()
                         require(clusteredCount == matrix.size) {
@@ -86,7 +72,7 @@ object Grappolo {
                         }
 
                         val (evaluation, evaluationTime) = time {
-                            clusteringEvaluator.evaluateClustering(clusters, matrix)
+                            configuration.clusteringEvaluator.evaluateClustering(clusters, matrix)
                         }
                         val currentResult = ClusteringResult(minSimilarity, evaluation, clusters)
                         listener?.onEachClusteringResult(currentResult, evaluationTime)
@@ -99,41 +85,33 @@ object Grappolo {
                     }
         }
 
-        listener?.onBestClusteringResult(bestResult, clusteringTime)
+        listener?.afterClustering(bestResult, clusteringTime)
         return bestResult
     }
 
-    fun buildSimilarityMatrix(elementCount: Int,
-                              similarityLowThreshold: Double,
-                              indexPairGenerator: IndexPairGenerator,
-                              similarityMetric: SimilarityMetric,
-                              listener: ClusteringListener? = null)
-            : SimilarityMatrix {
+    private fun buildSimilarityMatrix(configuration: ClusteringConfiguration, listener: ClusteringListener? = null): SimilarityMatrix {
 
-        require(elementCount > 0) {
-            "Element count must be positive, not $elementCount"
+        require(configuration.elementCount > 0) {
+            "Element count must be positive, not ${configuration.elementCount}"
         }
 
-        require(similarityLowThreshold >= 0 && similarityLowThreshold < 1)
-        {
-            "Similarity low threshold must be between 0 (include) and 1 (exclusive; got $similarityLowThreshold"
+        require(configuration.similarityLowThreshold >= 0 && configuration.similarityLowThreshold < 1) {
+            "Similarity low threshold must be between 0 (include) and 1 (exclusive; got ${configuration.similarityLowThreshold}"
         }
-
-        listener?.beforeMatrixCreation(elementCount, similarityLowThreshold)
 
         val (matrix, matrixCreationTime) = time {
-            SimilarityMatrix(elementCount).also { matrix ->
-                for ((i, j) in indexPairGenerator.pairs()) {
+            SimilarityMatrix(configuration.elementCount).also { matrix ->
+                for ((i, j) in configuration.indexPairGenerator.pairs()) {
 
-                    require(i in 0 until elementCount) { "Invalid first index: $i" }
-                    require(j in 0 until elementCount) { "Invalid second index: $j" }
+                    require(i in 0 until configuration.elementCount) { "Invalid first index: $i" }
+                    require(j in 0 until configuration.elementCount) { "Invalid second index: $j" }
 
-                    val similarity = if (i == j) 1.0 else similarityMetric.measureSimilarity(i, j)
+                    val similarity = if (i == j) 1.0 else configuration.similarityMetric.measureSimilarity(i, j)
                     require(similarity >= 0 && similarity < 1.0) {
                         "Similarity must be between 0 (inclusive) and 1 (exclusive); got $similarity"
                     }
 
-                    if (similarity >= similarityLowThreshold) {
+                    if (similarity >= configuration.similarityLowThreshold) {
                         matrix.addSimilarity(i, j, similarity)
                     }
                 }
