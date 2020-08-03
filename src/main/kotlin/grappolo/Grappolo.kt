@@ -43,12 +43,12 @@ object Grappolo {
                         val (clusters, _) =
                                 generateSequence(Pair(persistentListOf<Cluster>(), (0 until matrix.size).toPersistentSet())) { accum ->
 
-                                    val (_, unclustered) = accum
+                                    val (_, remaining) = accum
 
-                                    unclustered
+                                    remaining
                                             .asSequence()
                                             .map { elementIndex ->
-                                                configuration.clusterExtractor.extractCluster(elementIndex, minSimilarity, matrix, unclustered)
+                                                configuration.clusterExtractor.extractCluster(elementIndex, minSimilarity, matrix, remaining)
                                             }
                                             .distinct()
                                             .map { Cluster(it, matrix) }
