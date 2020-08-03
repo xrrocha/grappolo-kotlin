@@ -12,11 +12,14 @@ object ClosestSiblingClusterExtractor : ClusterExtractor {
 
         return initialElementSet
                 .flatMap { index ->
-                    matrix[index].closestElements(minSimilarity, unclustered).flatMap { siblingIndex ->
-                        matrix[siblingIndex].closestElements(minSimilarity, unclustered).map { cousinIndex ->
-                            listOf(index, siblingIndex, cousinIndex)
-                        }
-                    }
+                    matrix[index]
+                            .closestElements(minSimilarity, unclustered)
+                            .flatMap { siblingIndex ->
+                                matrix[siblingIndex]
+                                        .closestElements(minSimilarity, unclustered).map { cousinIndex ->
+                                            listOf(index, siblingIndex, cousinIndex)
+                                        }
+                            }
                 }
                 .filter { indices ->
                     indices.all(initialElementSet::contains)
