@@ -28,7 +28,7 @@ fun main() {
             elementCount = values.size,
             similarityLowThreshold = 0.6,
             indexPairGenerator = CartesianPairGenerator(values.size),
-            similarityMetric = DebattySimilarityMetric(Damerau()) { values[it] },
+            similarityMetric = DamerauSimilarityMetric { values[it] },
             clusterExtractor = ClosestSiblingClusterExtractor,
             clusterComparator = GreedyClusterComparator,
             clusteringEvaluator = IntraSimilarityClusteringEvaluator)
@@ -49,7 +49,7 @@ class SimpleListener(private val resultDirectory: File,
 
     private val logger = LoggerFactory.getLogger(this::class.java)!!
 
-    private lateinit var evaluations:  PrintWriter
+    private lateinit var evaluations: PrintWriter
     override fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {
         evaluations = File(resultDirectory, "evaluations.tsv").printWriter()
         evaluations.println("similarity\tevaluation\tclusters")
@@ -96,7 +96,7 @@ fun ClusteringResult.printToFile(file: File, toString: (Int) -> String = Int::to
             data = this.clusters.asSequence().map { cluster ->
                 listOf(
                         cluster.elements.size,
-                        cluster.elements.map{it.index}.joinToString(",", transform = toString),
+                        cluster.elements.map { it.index }.joinToString(",", transform = toString),
                         cluster.centroids.joinToString(",", transform = toString),
                         cluster.centroidWeight.fmt(4),
                         cluster.intraSimilarity.fmt(4)
