@@ -2,7 +2,11 @@ package grappolo
 
 class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
 
-    val elements: List<Int>
+    class ClusterElement(val index: Int, val intraSimilarity: Double) {
+        override fun toString(): String = "ClusterElement(index: $index, intraSimilarity: ${intraSimilarity.fmt(4)})"
+    }
+
+    val elements: List<ClusterElement>
     val centroids: List<Int>
     val centroidWeight: Double
     val intraSimilarity: Double
@@ -15,23 +19,38 @@ class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
             "Cluster set contains indices inconsistent with similarity matrix"
         }
 
-        elements = set.sorted()
+        fun intraSimilarity(elementIndex: Int) =
+                set
+                        .filter { index -> index != elementIndex }
+                        .map { index -> matrix[elementIndex][index] }
+                        .average()
 
-        intraSimilarity =
-                if (elements.size == 1) {
-                    0.0
-                } else {
-                    val list = elements.toList()
-                    elements.indices.flatMap { i -> elements.indices.map { j -> matrix[list[i]][list[j]] } }.average()
+        elements =
+                set.sorted().map { elementIndex ->
+                    ClusterElement(elementIndex, intraSimilarity(elementIndex))
                 }
 
-        val weightMap =
-                elements
-                        .flatMap { i -> elements.map { j -> i to matrix[i][j] } }
-                        .groupBy { it.first }
-                        .mapValues { entry -> entry.value.map { it.second }.sum() }
-        centroidWeight = weightMap.values.max()!!
-        centroids = weightMap.filterValues { it == centroidWeight }.keys.sorted()
+
+        if (elements.size == 1) {
+            intraSimilarity = 0.0
+            centroidWeight = 0.0
+            centroids = emptyList()
+        } else {
+            intraSimilarity = elements.map { it.intraSimilarity }.average()
+            val weightMap =
+                    elements
+                            .map { it.index }
+                            .flatMap { i ->
+                                elements
+                                        .map { it.index }
+                                        .filter { j -> i != j }
+                                        .map { j -> i to matrix[i][j] }
+                            }
+                            .groupBy { it.first }
+                            .mapValues { entry -> entry.value.map { it.second }.sum() }
+            centroidWeight = weightMap.values.max()!!
+            centroids = weightMap.filterValues { it == centroidWeight }.keys.sorted()
+        }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -40,6 +59,6 @@ class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
     override fun hashCode(): Int = elements.hashCode()
 
     override fun toString(): String {
-        return "Cluster(size=${elements.size},elements=$elements, centroids=$centroids, centroidWeight=$centroidWeight, intraSimilarity=$intraSimilarity)"
+        return "Cluster(size=${elements.size},elements=$elements, centroidWeight: ${centroidWeight.fmt(4)}, centroids=$centroids, intraSimilarity=$intraSimilarity)"
     }
 }

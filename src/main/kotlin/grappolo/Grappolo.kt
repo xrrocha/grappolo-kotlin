@@ -56,8 +56,8 @@ object Grappolo {
                                             .onEach { listener?.onEachClusterCreated(it) }
                                             .fold(accum) { accumSoFar, cluster ->
                                                 val (clustersSoFar, unclusteredSoFar) = accumSoFar
-                                                if (cluster.elements.all(unclusteredSoFar::contains)) {
-                                                    Pair(clustersSoFar.add(cluster), unclusteredSoFar.removeAll(cluster.elements))
+                                                if (cluster.elements.map { it.index }.all(unclusteredSoFar::contains)) {
+                                                    Pair(clustersSoFar.add(cluster), unclusteredSoFar.removeAll(cluster.elements.map { it.index }))
                                                 } else {
                                                     accumSoFar
                                                 }

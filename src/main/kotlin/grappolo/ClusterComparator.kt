@@ -25,9 +25,9 @@ object GreedyClusterComparator : ClusterComparator {
         val different =
                 cluster2
                         .elements.zip(cluster1.elements)
-                        .find { (e2, e1) -> e2 != e1 }
+                        .find { (e2, e1) -> e2.index != e1.index }
         if (different != null) {
-            return different.second - different.first
+            return different.second.index - different.first.index
         }
 
         return 0

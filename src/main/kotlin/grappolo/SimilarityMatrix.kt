@@ -19,11 +19,11 @@ class SimilarityMatrix(val size: Int) {
             elements[index] = similarity
         }
 
-        fun elementsAbove(minSimilarity: Double, unclustered: Set<Int>): Set<Int> =
-                elements.filter { entry -> entry.value >= minSimilarity && unclustered.contains(entry.key) }.keys
+        fun elementsAbove(minSimilarity: Double, available: Set<Int>): Set<Int> =
+                elements.filter { entry -> entry.value >= minSimilarity && available.contains(entry.key) }.keys
 
-        fun closestElements(minSimilarity: Double, unclustered: Set<Int>): Set<Int> {
-            val siblings = elementsAbove(minSimilarity, unclustered) - parentIndex
+        fun closestElements(minSimilarity: Double, available: Set<Int>): Set<Int> {
+            val siblings = elementsAbove(minSimilarity, available) - parentIndex
             val maxSimilarity = siblings.map { this[it] }.max()
             val set =
                     if (maxSimilarity == null) {

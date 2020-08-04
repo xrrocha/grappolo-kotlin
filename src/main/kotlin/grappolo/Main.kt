@@ -26,7 +26,7 @@ fun main() {
 
     val configuration = ClusteringConfiguration(
             elementCount = values.size,
-            similarityLowThreshold = 0.5,
+            similarityLowThreshold = 0.6,
             indexPairGenerator = CartesianPairGenerator(values.size),
             similarityMetric = DebattySimilarityMetric(Damerau()) { values[it] },
             clusterExtractor = ClosestSiblingClusterExtractor,
@@ -49,7 +49,10 @@ class SimpleListener(private val resultDirectory: File,
 
     private val logger = LoggerFactory.getLogger(this::class.java)!!
 
+    private lateinit var evaluations:  PrintWriter
     override fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {
+        evaluations = File(resultDirectory, "evaluations.tsv").printWriter()
+        evaluations.println("similarity\tevaluation\tclusters")
         logger.info("Matrix created in $matrixCreationTime milliseconds. ${matrix.distinctSimilarities().size} similarities found")
         matrix.printToFile(File(resultDirectory, "matrix.tsv")) { values[it] }
     }
@@ -59,6 +62,7 @@ class SimpleListener(private val resultDirectory: File,
     }
 
     override fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {
+        evaluations.println("${result.minSimilarity.fmt(4)}\t${result.evaluation.fmt(4)}\t${result.clusters.size.fmt()}")
         logger.info("${result.clusters.size} clusters found with average intra-similarity ${result.clusters.map(Cluster::intraSimilarity).average()} for ${result.minSimilarity} in $evaluationTime milliseconds. Evaluation: ${result.evaluation}")
         if (logResults) {
             result.printToFile(File(resultDirectory, "clusters-${result.minSimilarity.fmt(4)}.tsv")) { values[it] }
@@ -66,6 +70,7 @@ class SimpleListener(private val resultDirectory: File,
     }
 
     override fun afterClustering(result: ClusteringResult, clusteringTime: Long) {
+        evaluations.close()
         logger.info("Best result: ${result.clusters.size} clusters found in $clusteringTime milliseconds. Similarity: ${result.minSimilarity}. Evaluation: ${result.evaluation}")
     }
 }
@@ -91,7 +96,7 @@ fun ClusteringResult.printToFile(file: File, toString: (Int) -> String = Int::to
             data = this.clusters.asSequence().map { cluster ->
                 listOf(
                         cluster.elements.size,
-                        cluster.elements.joinToString(",", transform = toString),
+                        cluster.elements.map{it.index}.joinToString(",", transform = toString),
                         cluster.centroids.joinToString(",", transform = toString),
                         cluster.centroidWeight.fmt(4),
                         cluster.intraSimilarity.fmt(4)
