@@ -1,6 +1,5 @@
 package grappolo
 
-import info.debatty.java.stringsimilarity.Damerau
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.PrintWriter
@@ -8,8 +7,8 @@ import java.time.LocalDateTime
 
 fun main() {
 
-    val inputDirectoryName = "surnames"
-    val dataDirectory = File("data/$inputDirectoryName")
+    val datasetName = "surnames"
+    val dataDirectory = File("data/$datasetName")
     require(dataDirectory.exists() && dataDirectory.canRead()) {
         "Inaccessible data directory ${dataDirectory.absolutePath}"
     }
@@ -29,32 +28,45 @@ fun main() {
             similarityLowThreshold = 0.6,
             indexPairGenerator = CartesianPairGenerator(values.size),
             similarityMetric = DamerauSimilarityMetric { values[it] },
-            clusterExtractor = ClosestSiblingClusterExtractor,
+            clusterExtractor = ExhaustiveTraversalClusterExtractor, // ClosestSiblingClusterExtractor,
             clusterComparator = GreedyClusterComparator,
             clusteringEvaluator = IntraSimilarityClusteringEvaluator)
 
     val clusteringResult =
-            Grappolo.cluster(configuration, SimpleListener(resultDirectory, values, logResults = true))
-
-    File(resultDirectory, "results-summary.txt").printWriter().use { out ->
-        clusteringResult.printSummary(out)
-        out.println()
-        configuration.printSummary(out)
-    }
+            Grappolo.cluster(configuration,
+                    SimpleListener(datasetName, resultDirectory, values, logResults = true))
 }
 
-class SimpleListener(private val resultDirectory: File,
+class SimpleListener(private val datasetName: String,
+                     private val resultDirectory: File,
                      private val values: List<String>,
                      private val logResults: Boolean = false) : ClusteringListener {
 
-    private val logger = LoggerFactory.getLogger(this::class.java)!!
+    private lateinit var outputDirectory: File
+    private lateinit var summaryWriter: PrintWriter
+    private lateinit var evaluationWriter: PrintWriter
 
-    private lateinit var evaluations: PrintWriter
+    companion object {
+        private val logger = LoggerFactory.getLogger(this::class.java)!!
+    }
+
+    override fun beforeClustering(configuration: ClusteringConfiguration) {
+
+        outputDirectory = File(resultDirectory, "$datasetName-${configuration.signature()}")
+        logger.info("Cleaning up result directory: ${outputDirectory.absolutePath}")
+        outputDirectory.deleteRecursively()
+        outputDirectory.mkdirs()
+
+        summaryWriter = File(outputDirectory, "results-summary.txt").printWriter()
+        configuration.printSummary(summaryWriter)
+        summaryWriter.println()
+    }
+
     override fun onMatrixCreated(matrix: SimilarityMatrix, matrixCreationTime: Long) {
-        evaluations = File(resultDirectory, "evaluations.tsv").printWriter()
-        evaluations.println("similarity\tevaluation\tclusters")
+        evaluationWriter = File(outputDirectory, "evaluations.tsv").printWriter()
+        evaluationWriter.println("similarity\tevaluation\tclusters")
         logger.info("Matrix created in $matrixCreationTime milliseconds. ${matrix.distinctSimilarities().size} similarities found")
-        matrix.printToFile(File(resultDirectory, "matrix.tsv")) { values[it] }
+        matrix.printToFile(File(outputDirectory, "matrix.tsv")) { values[it] }
     }
 
     override fun onEachSimilarity(minSimilarity: Double, index: Int) {
@@ -62,16 +74,20 @@ class SimpleListener(private val resultDirectory: File,
     }
 
     override fun onEachClusteringResult(result: ClusteringResult, evaluationTime: Long) {
-        evaluations.println("${result.minSimilarity.fmt(4)}\t${result.evaluation.fmt(4)}\t${result.clusters.size.fmt()}")
+        evaluationWriter.println("${result.minSimilarity.fmt(4)}\t${result.evaluation.fmt(4)}\t${result.clusters.size.fmt()}")
         logger.info("${result.clusters.size} clusters found with average intra-similarity ${result.clusters.map(Cluster::intraSimilarity).average()} for ${result.minSimilarity} in $evaluationTime milliseconds. Evaluation: ${result.evaluation}")
         if (logResults) {
-            result.printToFile(File(resultDirectory, "clusters-${result.minSimilarity.fmt(4)}.tsv")) { values[it] }
+            result.printToFile(File(outputDirectory, "clusters-${result.minSimilarity.fmt(4)}.tsv")) { values[it] }
         }
     }
 
     override fun afterClustering(result: ClusteringResult, clusteringTime: Long) {
-        evaluations.close()
         logger.info("Best result: ${result.clusters.size} clusters found in $clusteringTime milliseconds. Similarity: ${result.minSimilarity}. Evaluation: ${result.evaluation}")
+
+        result.printSummary(summaryWriter)
+
+        summaryWriter.close()
+        evaluationWriter.close()
     }
 }
 

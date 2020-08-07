@@ -2,7 +2,9 @@ package grappolo
 
 interface ClusterComparator : Comparator<Cluster>
 
-object GreedyClusterComparator : ClusterComparator {
+object GreedyClusterComparator : ClusterComparator, Named {
+
+    override val name = "greedy"
 
     override fun compare(cluster1: Cluster, cluster2: Cluster): Int { // DESC
 

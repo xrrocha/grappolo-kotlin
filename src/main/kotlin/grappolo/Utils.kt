@@ -3,6 +3,10 @@ package grappolo
 import java.io.File
 import java.text.DecimalFormat
 
+interface Named {
+    val name: String
+}
+
 fun Double.fmt(digits: Int = 2) = "%.${digits}f".format(this)
 
 private val NUMBER_FORMAT = DecimalFormat("###,###,###,###,###")
@@ -32,5 +36,3 @@ fun File.printDelimited(separator: String, titles: List<String>, data: Sequence<
         }
     }
 }
-
-

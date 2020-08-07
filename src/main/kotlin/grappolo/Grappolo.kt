@@ -3,13 +3,30 @@ package grappolo
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentSet
 
+// 4072-0.600-cartesian-damerau-exhaustive-greedy-intrasim
 class ClusteringConfiguration(val elementCount: Int,
                               val similarityLowThreshold: Double,
                               val indexPairGenerator: IndexPairGenerator,
                               val similarityMetric: SimilarityMetric,
                               val clusterExtractor: ClusterExtractor,
                               val clusterComparator: ClusterComparator,
-                              val clusteringEvaluator: ClusteringEvaluator)
+                              val clusteringEvaluator: ClusteringEvaluator) {
+
+    fun signature(): String =
+            listOf(
+                    elementCount, similarityLowThreshold,
+                    indexPairGenerator, similarityMetric,
+                    clusterExtractor, clusterComparator, clusteringEvaluator
+            )
+                    .joinToString("-") {
+                        when(it) {
+                            is String -> it
+                            is Named -> it.name
+                            is Number -> it.toString()
+                            else -> it::class.java.simpleName
+                        }
+                    }
+}
 
 data class ClusteringResult(val minSimilarity: Double, val evaluation: Double, val clusters: List<Cluster>)
 
@@ -25,6 +42,8 @@ interface ClusteringListener {
 object Grappolo {
 
     fun cluster(configuration: ClusteringConfiguration, listener: ClusteringListener? = null): ClusteringResult {
+
+        listener?.beforeClustering(configuration)
 
         val matrix = buildSimilarityMatrix(configuration, listener)
 

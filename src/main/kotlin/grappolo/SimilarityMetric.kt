@@ -19,5 +19,8 @@ open class DebattySimilarityMetric(private val stringDistance: MetricStringDista
 }
 
 class DamerauSimilarityMetric(indexToString: (Int) -> String = Int::toString):
-        DebattySimilarityMetric(Damerau(), indexToString)
+        DebattySimilarityMetric(Damerau(), indexToString), Named {
+
+    override val name = "damerau"
+}
 
