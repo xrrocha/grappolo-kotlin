@@ -23,6 +23,7 @@ class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
                 set
                         .filter { index -> index != elementIndex }
                         .map { index -> matrix[elementIndex][index] }
+                        .filter { it > 0.0 } // TODO Reinstate score for cluster members
                         .average()
 
         elements =
@@ -30,11 +31,10 @@ class Cluster(set: Set<Int>, matrix: SimilarityMatrix) {
                     ClusterElement(elementIndex, intraSimilarity(elementIndex))
                 }
 
-
         if (elements.size == 1) {
             intraSimilarity = 0.0
             centroidWeight = 0.0
-            centroids = emptyList()
+            centroids = elements.map { it.index }
         } else {
             intraSimilarity = elements.map { it.intraSimilarity }.average()
             val weightMap =

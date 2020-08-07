@@ -7,6 +7,8 @@ import java.time.LocalDateTime
 
 fun main() {
 
+    val logger = LoggerFactory.getLogger("grappolo.MainKt")
+
     val datasetName = "surnames"
     val dataDirectory = File("data/$datasetName")
     require(dataDirectory.exists() && dataDirectory.canRead()) {
@@ -25,16 +27,17 @@ fun main() {
 
     val configuration = ClusteringConfiguration(
             elementCount = values.size,
-            similarityLowThreshold = 0.6,
+            similarityLowThreshold = 0.5,
             indexPairGenerator = CartesianPairGenerator(values.size),
             similarityMetric = DamerauSimilarityMetric { values[it] },
             clusterExtractor = ExhaustiveTraversalClusterExtractor, // ClosestSiblingClusterExtractor,
             clusterComparator = GreedyClusterComparator,
             clusteringEvaluator = IntraSimilarityClusteringEvaluator)
 
-    val clusteringResult =
+    val result =
             Grappolo.cluster(configuration,
                     SimpleListener(datasetName, resultDirectory, values, logResults = true))
+    logger.info("${result.clusters.size} clusters for similarity ${result.minSimilarity.fmt(4)} and evaluation ${result.evaluation.fmt(4)}")
 }
 
 class SimpleListener(private val datasetName: String,

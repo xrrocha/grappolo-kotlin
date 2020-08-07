@@ -91,7 +91,7 @@ object Grappolo {
                         }
 
                         val (evaluation, evaluationTime) = time {
-                            configuration.clusteringEvaluator.evaluateClustering(clusters, matrix)
+                            configuration.clusteringEvaluator.evaluateClustering(clusters, matrix, minSimilarity)
                         }
                         val currentResult = ClusteringResult(minSimilarity, evaluation, clusters)
                         listener?.onEachClusteringResult(currentResult, evaluationTime)

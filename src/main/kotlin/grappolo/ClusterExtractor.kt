@@ -86,15 +86,15 @@ object ExhaustiveTraversalClusterExtractor : ClusterExtractor, Named {
 
         return if (!available.contains(elementIndex)) {
 
-            emptySet()
+            setOf(elementIndex)
 
         } else {
 
             val initialStep = ClusterStep(
                     collectedClusters = listOf(),
                     clusteredElements = setOf(),
-                    clusterPath = setOf(elementIndex),
-                    collectedPaths = setOf(setOf(elementIndex))
+                    clusterPath = setOf(),
+                    collectedPaths = setOf(setOf())
             )
 
             advance(elementIndex, initialStep).collectedPaths.flatten().toSet()
