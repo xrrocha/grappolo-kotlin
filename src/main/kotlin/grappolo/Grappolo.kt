@@ -126,7 +126,7 @@ object Grappolo {
                     require(j in 0 until configuration.elementCount) { "Invalid second index: $j" }
 
                     val similarity = if (i == j) 1.0 else configuration.similarityMetric.measureSimilarity(i, j)
-                    require(similarity >= 0 && similarity < 1.0) {
+                    require(similarity >= 0 && (similarity < 1.0 || (i == j && similarity == 1.0))) {
                         "Similarity must be between 0 (inclusive) and 1 (exclusive); got $similarity"
                     }
 
