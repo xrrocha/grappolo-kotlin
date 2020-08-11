@@ -1,24 +1,24 @@
 package grappolo
 
 interface ClusterExtractor {
-    fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, available: Set<Int>): Set<Int>
+    fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, remaining: Set<Int>): Set<Int>
 }
 
 object ClosestSiblingClusterExtractor : ClusterExtractor, Named {
 
     override val name = "closestSiblings"
 
-    override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, available: Set<Int>): Set<Int> {
+    override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, remaining: Set<Int>): Set<Int> {
 
-        val initialElementSet = matrix[elementIndex].elementsAbove(minSimilarity, available)
+        val initialElementSet = matrix[elementIndex].elementsAbove(minSimilarity, remaining)
 
         return initialElementSet
                 .flatMap { index ->
                     matrix[index]
-                            .closestElements(minSimilarity, available)
+                            .closestElements(minSimilarity, remaining)
                             .flatMap { siblingIndex ->
                                 matrix[siblingIndex]
-                                        .closestElements(minSimilarity, available).map { stepSiblingIndex ->
+                                        .closestElements(minSimilarity, remaining).map { stepSiblingIndex ->
                                             listOf(index, siblingIndex, stepSiblingIndex)
                                         }
                             }
@@ -31,12 +31,11 @@ object ClosestSiblingClusterExtractor : ClusterExtractor, Named {
     }
 }
 
-
 object ExhaustiveTraversalClusterExtractor : ClusterExtractor, Named {
 
     override val name = "exhaustiveTraversal"
 
-    override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, available: Set<Int>): Set<Int> {
+    override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, remaining: Set<Int>): Set<Int> {
 
         data class ClusterStep(
                 val collectedClusters: List<Set<Int>>,
@@ -47,7 +46,7 @@ object ExhaustiveTraversalClusterExtractor : ClusterExtractor, Named {
 
         fun advance(index: Int, clusterStep: ClusterStep): ClusterStep {
 
-            val neighborIndices = matrix[index].elementsAbove(minSimilarity, available)
+            val neighborIndices = matrix[index].elementsAbove(minSimilarity, remaining)
 
             val nextStep =
                     neighborIndices.fold(clusterStep) { currentStep, neighborIndex ->
@@ -84,7 +83,7 @@ object ExhaustiveTraversalClusterExtractor : ClusterExtractor, Named {
             }
         }
 
-        return if (!available.contains(elementIndex)) {
+        return if (!remaining.contains(elementIndex)) {
 
             setOf(elementIndex)
 

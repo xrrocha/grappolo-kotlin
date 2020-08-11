@@ -74,15 +74,15 @@ object Grappolo {
                                             .sortedWith(configuration.clusterComparator)
                                             .onEach { listener?.onEachClusterCreated(it) }
                                             .fold(accum) { accumSoFar, cluster ->
-                                                val (clustersSoFar, unclusteredSoFar) = accumSoFar
-                                                if (cluster.elements.map { it.index }.all(unclusteredSoFar::contains)) {
-                                                    Pair(clustersSoFar.add(cluster), unclusteredSoFar.removeAll(cluster.elements.map { it.index }))
+                                                val (clustersSoFar, remainingSoFar) = accumSoFar
+                                                if (cluster.elements.map { it.index }.all(remainingSoFar::contains)) {
+                                                    Pair(clustersSoFar.add(cluster), remainingSoFar.removeAll(cluster.elements.map { it.index }))
                                                 } else {
                                                     accumSoFar
                                                 }
                                             }
                                 }
-                                        .dropWhile { (_, unclustered) -> unclustered.isNotEmpty() }
+                                        .dropWhile { (_, remaining) -> remaining.isNotEmpty() }
                                         .first()
 
                         val clusteredCount = clusters.map { it.elements.size }.sum()
