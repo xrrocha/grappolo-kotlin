@@ -8,7 +8,7 @@ plugins {
 
 // TODO Fix Gradle 7 warnings
 application {
-    mainClassName = "grappolo.GrappoloKt"
+    mainClassName = "grappolo.MainKt"
 }
 
 group = "grappolo"
