@@ -1,6 +1,6 @@
 plugins {
 
-    val kotlinVersion = "1.3.72"
+    val kotlinVersion = "1.4.0"
 
     application
     kotlin("jvm") version kotlinVersion
@@ -25,7 +25,7 @@ dependencies {
     val hsqldbVersion = "2.5.0"
     val jacksonVersion = "2.11.0"
     val junitVersion = "4.13"
-    val kotlinVersion = "1.3.72"
+    val kotlinVersion = "1.4.0"
     val coroutinesVersion = "1.3.7"
     val immutableVersion = "0.3.2"
     val logbackVersion = "1.2.3"
