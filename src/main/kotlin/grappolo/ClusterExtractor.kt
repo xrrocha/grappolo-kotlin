@@ -100,3 +100,29 @@ object ExhaustiveTraversalClusterExtractor : ClusterExtractor, Named {
         }
     }
 }
+
+//object LongestMostSimilarClusterExtractor : ClusterExtractor, Named {
+//
+//    override val name = "longestMostSimilar"
+//
+//    override fun extractCluster(elementIndex: Int, minSimilarity: Double, matrix: SimilarityMatrix, remaining: Set<Int>): Set<Int> {
+//
+//        val initialCluster = ExhaustiveTraversalClusterExtractor.extractCluster(elementIndex, minSimilarity, matrix, remaining)
+//
+//        return generateSequence(Pair(initialCluster, emptySet<Int>())) { (currentCluster, previousCluster) ->
+//            val nextCluster =
+//                    currentCluster
+//                            .filter { index ->
+//                                val mostSimilar = matrix[index].closestElements(minSimilarity, remaining)
+//                                currentCluster.intersect(mostSimilar).isNotEmpty()
+//                            }
+//                            .toSet()
+//            Pair(nextCluster, currentCluster)
+//        }
+//                .dropWhile{ (currentCluster, previousCluster) ->
+//                    currentCluster.size != previousCluster.size
+//                }
+//                .first()
+//                .first
+//    }
+//}
